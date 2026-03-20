@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hidden Fish 🐠 — Memory Training Game</title>
+<style>
+/* ===== RESET & BASE ===== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(180deg, #0a1628 0%, #0f2b4a 30%, #1a4a6e 60%, #2d8a9e 100%);
+  color: #e0f0ff;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ===== BUBBLES BACKGROUND ===== */
+.bubbles {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 0; overflow: hidden;
+}
+.bubble {
+  position: absolute; bottom: -40px; border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  animation: rise linear infinite;
+}
+@keyframes rise {
+  0% { transform: translateY(0) scale(1); opacity: 0.6; }
+  100% { transform: translateY(-110vh) scale(0.3); opacity: 0; }
+}
+
+/* ===== LAYOUT ===== */
+.screen { display: none; flex-direction: column; align-items: center; position: relative; z-index: 1; }
+.screen.active { display: flex; }
+
+/* ===== HOME SCREEN ===== */
+#home { justify-content: center; min-height: 100vh; padding: 20px; gap: 24px; }
+
+.title {
+  font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 800;
+  text-align: center;
+  background: linear-gradient(135deg, #56ccf2, #2f80ed, #f7971e);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmer 3s ease-in-out infinite alternate;
+}
+@keyframes shimmer {
+  0% { filter: brightness(1); }
+  100% { filter: brightness(1.3); }
+}
+
+.subtitle { font-size: 1rem; opacity: 0.7; text-align: center; }
+
+.stats-bar {
+  display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;
+  background: rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 24px;
+}
+.stat-item { text-align: center; }
+.stat-value { font-size: 1.4rem; font-weight: 700; color: #56ccf2; }
+.stat-label { font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; }
+
+.btn {
+  border: none; border-radius: 12px; padding: 14px 40px; font-size: 1.1rem;
+  font-weight: 700; cursor: pointer; transition: all 0.2s;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary {
+  background: linear-gradient(135deg, #f7971e, #ffd200);
+  color: #1a1a2e; box-shadow: 0 4px 20px rgba(247,151,30,0.4);
+}
+.btn-primary:hover { box-shadow: 0 6px 30px rgba(247,151,30,0.6); transform: translateY(-2px); }
+.btn-secondary {
+  background: rgba(255,255,255,0.12); color: #e0f0ff;
+  border: 1px solid rgba(255,255,255,0.2);
+}
+.btn-secondary:hover { background: rgba(255,255,255,0.2); }
+
+.level-select-row {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+}
+.level-select-row select {
+  background: rgba(255,255,255,0.1); color: #e0f0ff; border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px; padding: 8px 12px; font-size: 0.95rem;
+}
+.level-select-row select option { background: #0f2b4a; color: #e0f0ff; }
+
+/* ===== GAME SCREEN ===== */
+#game { min-height: 100vh; padding: 16px; gap: 12px; }
+
+.game-header {
+  width: 100%; max-width: 540px;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-wrap: wrap; gap: 8px;
+}
+.game-header .level-badge {
+  background: rgba(255,255,255,0.12); border-radius: 8px; padding: 6px 14px;
+  font-weight: 600; font-size: 0.9rem;
+}
+.game-header .score-display { font-size: 1.1rem; font-weight: 700; color: #ffd200; }
+
+.progress-bar-container {
+  width: 100%; max-width: 540px; height: 6px;
+  background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%; background: linear-gradient(90deg, #56ccf2, #2f80ed);
+  border-radius: 3px; transition: width 0.4s;
+}
+
+/* ===== GRID ===== */
+.grid-wrapper {
+  position: relative;
+  width: min(80vw, 480px); aspect-ratio: 1;
+  display: flex; align-items: center; justify-content: center;
+}
+.grid-container {
+  display: grid; gap: 4px; width: 100%; height: 100%;
+}
+.cell {
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: clamp(1.2rem, 3vw, 2rem);
+  cursor: default;
+  transition: all 0.3s ease;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+.cell.clickable { cursor: pointer; }
+.cell.clickable:hover {
+  background: rgba(86,204,242,0.25); border-color: rgba(86,204,242,0.5);
+  transform: scale(1.04);
+}
+.cell.selected {
+  background: rgba(86,204,242,0.3); border-color: #56ccf2;
+}
+.cell.reveal {
+  background: rgba(56,204,242,0.2); border-color: #56ccf2;
+  animation: fishPop 0.4s ease-out;
+}
+@keyframes fishPop {
+  0% { transform: scale(0.5); opacity: 0; }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.cell.correct {
+  background: rgba(46,204,113,0.35); border-color: #2ecc71;
+  animation: correctPulse 0.5s ease;
+}
+@keyframes correctPulse {
+  0%,100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+.cell.wrong {
+  background: rgba(231,76,60,0.35); border-color: #e74c3c;
+  animation: wrongShake 0.4s ease;
+}
+@keyframes wrongShake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+.cell.missed {
+  background: rgba(241,196,15,0.3); border-color: #f1c40f;
+}
+
+/* ===== COUNTDOWN OVERLAY ===== */
+.countdown-overlay {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,22,40,0.7); border-radius: 12px;
+  z-index: 5; pointer-events: none;
+}
+.countdown-number {
+  font-size: 4rem; font-weight: 900; color: #ffd200;
+  animation: countPop 0.6s ease-out;
+}
+@keyframes countPop {
+  0% { transform: scale(2); opacity: 0; }
+  60% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.game-status {
+  font-size: 1rem; font-weight: 600; min-height: 1.4em;
+  text-align: center; opacity: 0.8;
+}
+
+/* ===== RESULT OVERLAY ===== */
+#result-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(10,22,40,0.85); z-index: 10;
+  display: none; align-items: center; justify-content: center;
+  padding: 20px;
+}
+#result-overlay.active { display: flex; }
+
+.result-card {
+  background: linear-gradient(160deg, #132742, #1a4a6e);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 20px; padding: 32px; max-width: 420px; width: 100%;
+  text-align: center; display: flex; flex-direction: column; gap: 16px;
+  animation: slideUp 0.4s ease-out;
+}
+@keyframes slideUp {
+  0% { transform: translateY(40px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.result-card h2 { font-size: 1.6rem; }
+.result-card .accuracy-big {
+  font-size: 3rem; font-weight: 900;
+  background: linear-gradient(135deg, #56ccf2, #2f80ed);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.result-card .result-details {
+  display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;
+}
+.result-card .result-stat { text-align: center; }
+.result-card .result-stat span { display: block; }
+.result-card .result-stat .val { font-size: 1.3rem; font-weight: 700; }
+
+.tip-box {
+  background: rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;
+  font-size: 0.85rem; line-height: 1.5; text-align: left;
+  border-left: 3px solid #f7971e;
+}
+.tip-box .tip-label { font-weight: 700; color: #f7971e; margin-bottom: 4px; }
+
+.result-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+/* ===== STATS SCREEN ===== */
+#stats { min-height: 100vh; padding: 24px; gap: 20px; justify-content: center; }
+.stats-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px; width: 100%; max-width: 500px;
+}
+.stats-card {
+  background: rgba(255,255,255,0.08); border-radius: 12px; padding: 18px;
+  text-align: center;
+}
+.stats-card .val { font-size: 1.6rem; font-weight: 800; color: #56ccf2; }
+.stats-card .lbl { font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; margin-top: 4px; }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  .grid-wrapper { width: 92vw; }
+  .game-header { font-size: 0.85rem; }
+  .result-card { padding: 24px 18px; }
+  .stats-bar { gap: 14px; padding: 10px 16px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Animated bubbles background -->
+<div class="bubbles" id="bubbles"></div>
+
+<!-- ===== HOME SCREEN ===== -->
+<div id="home" class="screen active">
+  <div class="title">Hidden Fish 🐠</div>
+  <div class="subtitle">A visual memory training game — find the hidden fish!</div>
+
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-value" id="home-level">1</div>
+      <div class="stat-label">Level</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="home-highscore">0</div>
+      <div class="stat-label">High Score</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value" id="home-accuracy">—</div>
+      <div class="stat-label">Avg Accuracy</div>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="btn-play">▶ Play</button>
+
+  <div class="level-select-row">
+    <label for="level-selector">Jump to level:</label>
+    <select id="level-selector"></select>
+  </div>
+
+  <button class="btn btn-secondary" id="btn-stats">📊 Stats</button>
+</div>
+
+<!-- ===== GAME SCREEN ===== -->
+<div id="game" class="screen">
+  <div class="game-header">
+    <div class="level-badge" id="game-level">Level 1</div>
+    <div class="score-display">Score: <span id="game-score">0</span></div>
+  </div>
+  <div class="progress-bar-container">
+    <div class="progress-bar-fill" id="progress-fill"></div>
+  </div>
+  <div class="game-status" id="game-status">Get ready...</div>
+  <div class="grid-wrapper" id="grid-wrapper">
+    <div class="grid-container" id="grid"></div>
+  </div>
+  <button class="btn btn-secondary" id="btn-submit" style="display:none;">✔ Submit Answers</button>
+  <button class="btn btn-secondary" id="btn-home-from-game" style="margin-top:8px;">← Home</button>
+</div>
+
+<!-- ===== RESULT OVERLAY ===== -->
+<div id="result-overlay">
+  <div class="result-card">
+    <h2 id="result-title">Round Complete!</h2>
+    <div class="accuracy-big" id="result-accuracy">100%</div>
+    <div class="result-details">
+      <div class="result-stat"><span class="val" id="res-correct">0</span><span>Correct</span></div>
+      <div class="result-stat"><span class="val" id="res-wrong">0</span><span>Wrong</span></div>
+      <div class="result-stat"><span class="val" id="res-missed">0</span><span>Missed</span></div>
+      <div class="result-stat"><span class="val" id="res-points">0</span><span>Points</span></div>
+    </div>
+    <div class="tip-box">
+      <div class="tip-label">💡 Memory Tip</div>
+      <div id="tip-text"></div>
+    </div>
+    <div class="result-buttons">
+      <button class="btn btn-secondary" id="btn-retry">🔄 Retry</button>
+      <button class="btn btn-primary" id="btn-next" style="display:none;">Next Level →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== STATS SCREEN ===== -->
+<div id="stats" class="screen">
+  <h2>📊 Your Stats</h2>
+  <div class="stats-grid">
+    <div class="stats-card"><div class="val" id="st-level">1</div><div class="lbl">Current Level</div></div>
+    <div class="stats-card"><div class="val" id="st-highscore">0</div><div class="lbl">High Score</div></div>
+    <div class="stats-card"><div class="val" id="st-played">0</div><div class="lbl">Rounds Played</div></div>
+    <div class="stats-card"><div class="val" id="st-accuracy">—</div><div class="lbl">Avg Accuracy</div></div>
+    <div class="stats-card"><div class="val" id="st-perfect">0</div><div class="lbl">Perfect Rounds</div></div>
+    <div class="stats-card"><div class="val" id="st-streak">0</div><div class="lbl">Best Streak</div></div>
+  </div>
+  <button class="btn btn-secondary" id="btn-home-from-stats">← Back</button>
+</div>
+
+<script>
+/* =============================================================
+   HIDDEN FISH — Memory Training Game
+   ============================================================= */
+
+// ===== LEVEL CONFIGURATION =====
+// Each entry: [maxLevel, rows, cols, fishCount]
+const LEVEL_TABLE = [
+  [5,   4, 4,  2],
+  [10,  4, 4,  3],
+  [15,  4, 4,  4],
+  [20,  4, 5,  4],
+  [25,  4, 5,  5],
+  [30,  5, 5,  5],
+  [35,  5, 5,  6],
+  [40,  5, 6,  6],
+  [45,  5, 6,  7],
+  [50,  6, 6,  7],
+  [55,  6, 6,  8],
+  [60,  6, 7,  8],
+  [65,  6, 7,  9],
+  [70,  7, 7,  9],
+  [75,  7, 7, 10],
+  [80,  7, 8, 10],
+  [85,  7, 8, 11],
+  [90,  8, 8, 11],
+  [95,  8, 8, 12],
+  [100, 8, 8, 13],
+];
+
+/** Returns { rows, cols, fishCount } for a given level (1–100). */
+function getLevelConfig(level) {
+  level = Math.max(1, Math.min(100, level));
+  for (const [maxLvl, rows, cols, fishCount] of LEVEL_TABLE) {
+    if (level <= maxLvl) return { rows, cols, fishCount };
+  }
+  // Fallback for level > 100
+  return { rows: 8, cols: 8, fishCount: 13 };
+}
+
+// ===== MEMORY TIPS LIBRARY =====
+const TIPS = {
+  basic: [
+    { title: "Chunking", text: "Try grouping fish into clusters rather than memorizing individually — your brain handles 3–4 chunks better than 8 single items." },
+    { title: "Spatial Anchoring", text: "Mentally link each fish position to a landmark (e.g., 'top-left corner', 'center row'). Anchors help recall." },
+    { title: "Breathing", text: "Take a slow breath before the hide phase — calm focus improves short-term memory encoding." },
+    { title: "Visualization", text: "Close your eyes briefly and picture the grid. Replay the image in your mind before clicking." },
+    { title: "Counting Strategy", text: "Count the fish in each row or column. Numbers are easier to hold in short-term memory than positions." },
+    { title: "Grid Scanning", text: "Scan the grid systematically — left to right, top to bottom. A consistent scan order helps build reliable recall." },
+  ],
+  intermediate: [
+    { title: "The Story Method", text: "Create a quick mental story connecting all the fish positions — even a silly one sticks better than raw memory." },
+    { title: "Pattern Recognition", text: "Look for geometric shapes formed by the fish — triangles, L-shapes, lines are easier to recall than random dots." },
+    { title: "Peripheral Vision", text: "Instead of staring at each fish, try softening your gaze to take in the whole grid at once. This activates spatial memory." },
+    { title: "Mental Grid Overlay", text: "Imagine dividing the grid into quadrants. Note how many fish are in each quadrant for faster recall." },
+    { title: "Emotional Encoding", text: "React emotionally to the pattern — 'Oh, it looks like a smiley face!' Emotions strengthen memory traces." },
+    { title: "Rehearsal", text: "During the reveal phase, silently repeat the positions to yourself: 'row 2 col 3, row 4 col 1...' Verbal rehearsal reinforces visual memory." },
+  ],
+  advanced: [
+    { title: "Memory Palace", text: "Map each grid cell to a room in a familiar building. 'Place' each fish in its room — this ancient technique scales to large grids." },
+    { title: "Dual Coding", text: "Combine visual and verbal encoding. See the pattern AND name it. Two memory codes are more robust than one." },
+    { title: "Spaced Practice", text: "You improve faster with short daily sessions than long marathons. Your brain consolidates memory during rest." },
+    { title: "Meta-Cognitive Monitoring", text: "Before submitting, rate your confidence for each cell. Focus extra attention on low-confidence positions." },
+    { title: "Interference Reduction", text: "Try to 'clear' the previous round's pattern from your mind before starting a new one. Old memories can interfere with new ones." },
+    { title: "Speed Encoding", text: "Challenge yourself to encode the pattern in the first 2 seconds, then use the remaining time to verify. Speed builds encoding strength." },
+  ],
+};
+
+/** Returns a tip object { title, text } appropriate for the given level. */
+function showTip(level) {
+  let pool;
+  if (level <= 20) pool = TIPS.basic;
+  else if (level <= 60) pool = TIPS.intermediate;
+  else pool = TIPS.advanced;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+// ===== GAME STATE =====
+let state = {
+  currentLevel: 1,
+  score: 0,
+  highScore: 0,
+  streak: 0,
+  bestStreak: 0,
+  roundsPlayed: 0,
+  perfectRounds: 0,
+  accuracyHistory: [],  // array of accuracy percentages
+  maxUnlockedLevel: 1,
+};
+
+// Round-specific state
+let fishPositions = new Set();  // "row-col" strings
+let playerClicks = new Set();
+let phase = 'idle'; // idle | countdown | reveal | recall | result
+
+// ===== DOM REFERENCES =====
+const $ = id => document.getElementById(id);
+const screens = { home: $('home'), game: $('game'), stats: $('stats') };
+
+// ===== SCREEN NAVIGATION =====
+function showScreen(name) {
+  Object.values(screens).forEach(s => s.classList.remove('active'));
+  screens[name].classList.add('active');
+  $('result-overlay').classList.remove('active');
+}
+
+// ===== LOCAL STORAGE =====
+const STORAGE_KEY = 'hiddenfish_save';
+
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadState() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if (saved) Object.assign(state, saved);
+  } catch (e) { /* ignore corrupt data */ }
+}
+
+// ===== HOME SCREEN =====
+function updateHomeUI() {
+  $('home-level').textContent = state.currentLevel;
+  $('home-highscore').textContent = state.highScore;
+  const avgAcc = state.accuracyHistory.length > 0
+    ? Math.round(state.accuracyHistory.reduce((a, b) => a + b, 0) / state.accuracyHistory.length)
+    : null;
+  $('home-accuracy').textContent = avgAcc !== null ? avgAcc + '%' : '—';
+  populateLevelSelector();
+}
+
+function populateLevelSelector() {
+  const sel = $('level-selector');
+  sel.innerHTML = '';
+  for (let i = 1; i <= state.maxUnlockedLevel; i++) {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `Level ${i}`;
+    if (i === state.currentLevel) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+// ===== GRID RENDERING =====
+function renderGrid(rows, cols) {
+  const grid = $('grid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  // Adjust wrapper aspect ratio for non-square grids
+  const wrapper = $('grid-wrapper');
+  wrapper.style.aspectRatio = `${cols} / ${rows}`;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.dataset.pos = `${r}-${c}`;
+      cell.addEventListener('click', () => onCellClick(r, c, cell));
+      grid.appendChild(cell);
+    }
+  }
+}
+
+// ===== GAME PHASES =====
+
+/** Start a new round for the current level. */
+function startRound() {
+  const config = getLevelConfig(state.currentLevel);
+  fishPositions.clear();
+  playerClicks.clear();
+  phase = 'countdown';
+
+  $('game-level').textContent = `Level ${state.currentLevel}`;
+  $('game-score').textContent = state.score;
+  $('progress-fill').style.width = `${(state.currentLevel / 100) * 100}%`;
+  $('btn-submit').style.display = 'none';
+  $('game-status').textContent = 'Get ready...';
+
+  renderGrid(config.rows, config.cols);
+
+  // Place fish randomly
+  const allPositions = [];
+  for (let r = 0; r < config.rows; r++)
+    for (let c = 0; c < config.cols; c++)
+      allPositions.push(`${r}-${c}`);
+
+  // Shuffle and pick
+  for (let i = allPositions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [allPositions[i], allPositions[j]] = [allPositions[j], allPositions[i]];
+  }
+  for (let i = 0; i < config.fishCount; i++) {
+    fishPositions.add(allPositions[i]);
+  }
+
+  // Countdown 3-2-1 then reveal
+  runCountdown(3);
+}
+
+function runCountdown(count) {
+  if (count <= 0) {
+    startRevealPhase();
+    return;
+  }
+
+  const wrapper = $('grid-wrapper');
+  // Remove any existing overlay
+  let overlay = wrapper.querySelector('.countdown-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.className = 'countdown-overlay';
+    wrapper.appendChild(overlay);
+  }
+  overlay.innerHTML = `<div class="countdown-number">${count}</div>`;
+  $('game-status').textContent = `Starting in ${count}...`;
+
+  setTimeout(() => runCountdown(count - 1), 800);
+}
+
+function startRevealPhase() {
+  phase = 'reveal';
+  // Remove countdown overlay
+  const overlay = $('grid-wrapper').querySelector('.countdown-overlay');
+  if (overlay) overlay.remove();
+
+  $('game-status').textContent = '🐟 Memorize the fish positions!';
+
+  // Show fish on cells
+  const cells = $('grid').children;
+  for (const cell of cells) {
+    if (fishPositions.has(cell.dataset.pos)) {
+      cell.classList.add('reveal');
+      cell.textContent = '🐟';
+    }
+  }
+
+  // After 3 seconds, hide
+  setTimeout(() => {
+    if (phase === 'reveal') startRecallPhase();
+  }, 3000);
+}
+
+function startRecallPhase() {
+  phase = 'recall';
+  $('game-status').textContent = '🔍 Click where the fish were hiding!';
+  $('btn-submit').style.display = '';
+
+  const cells = $('grid').children;
+  for (const cell of cells) {
+    cell.classList.remove('reveal');
+    cell.textContent = '';
+    cell.classList.add('clickable');
+  }
+}
+
+function onCellClick(r, c, cell) {
+  if (phase !== 'recall') return;
+
+  const pos = `${r}-${c}`;
+  if (playerClicks.has(pos)) {
+    // Deselect
+    playerClicks.delete(pos);
+    cell.classList.remove('selected');
+  } else {
+    playerClicks.add(pos);
+    cell.classList.add('selected');
+  }
+}
+
+/** Evaluate the player's clicks against actual fish positions. */
+function evaluateAnswers() {
+  phase = 'result';
+  $('btn-submit').style.display = 'none';
+
+  let correct = 0, wrong = 0, missed = 0;
+
+  const cells = $('grid').children;
+  for (const cell of cells) {
+    cell.classList.remove('clickable', 'selected');
+    const pos = cell.dataset.pos;
+    const isFish = fishPositions.has(pos);
+    const isClicked = playerClicks.has(pos);
+
+    if (isFish && isClicked) {
+      cell.classList.add('correct');
+      cell.textContent = '✅';
+      correct++;
+    } else if (!isFish && isClicked) {
+      cell.classList.add('wrong');
+      cell.textContent = '❌';
+      wrong++;
+    } else if (isFish && !isClicked) {
+      cell.classList.add('missed');
+      cell.textContent = '🐟';
+      missed++;
+    }
+  }
+
+  const totalFish = fishPositions.size;
+  const accuracy = totalFish > 0 ? Math.round((correct / totalFish) * 100) : 0;
+  const isPerfect = correct === totalFish && wrong === 0;
+  const passed = accuracy >= 70;
+
+  // Scoring
+  let points = correct * 10 - wrong * 5;
+  if (isPerfect) points += 50;
+  if (points < 0) points = 0;
+  state.score += points;
+  if (state.score > state.highScore) state.highScore = state.score;
+
+  // Stats
+  state.roundsPlayed++;
+  state.accuracyHistory.push(accuracy);
+  if (isPerfect) state.perfectRounds++;
+
+  if (passed) {
+    state.streak++;
+    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    if (state.currentLevel < 100) {
+      state.currentLevel++;
+      if (state.currentLevel > state.maxUnlockedLevel) {
+        state.maxUnlockedLevel = state.currentLevel;
+      }
+    }
+  } else {
+    state.streak = 0;
+  }
+
+  saveState();
+
+  // Show result overlay
+  $('result-title').textContent = isPerfect ? '🌟 Perfect Round!' : passed ? '✅ Level Passed!' : '❌ Try Again';
+  $('result-accuracy').textContent = accuracy + '%';
+  $('res-correct').textContent = correct;
+  $('res-wrong').textContent = wrong;
+  $('res-missed').textContent = missed;
+  $('res-points').textContent = '+' + points;
+
+  // Tip
+  const tip = showTip(state.currentLevel);
+  $('tip-text').innerHTML = `<strong>${tip.title}:</strong> ${tip.text}`;
+
+  // Buttons
+  $('btn-next').style.display = passed ? '' : 'none';
+  $('btn-retry').style.display = passed ? 'none' : '';
+
+  $('result-overlay').classList.add('active');
+}
+
+// ===== STATS SCREEN =====
+function updateStatsUI() {
+  $('st-level').textContent = state.currentLevel;
+  $('st-highscore').textContent = state.highScore;
+  $('st-played').textContent = state.roundsPlayed;
+  $('st-perfect').textContent = state.perfectRounds;
+  $('st-streak').textContent = state.bestStreak;
+  const avgAcc = state.accuracyHistory.length > 0
+    ? Math.round(state.accuracyHistory.reduce((a, b) => a + b, 0) / state.accuracyHistory.length)
+    : null;
+  $('st-accuracy').textContent = avgAcc !== null ? avgAcc + '%' : '—';
+}
+
+// ===== BUBBLES BACKGROUND =====
+function createBubbles() {
+  const container = $('bubbles');
+  for (let i = 0; i < 20; i++) {
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    const size = 10 + Math.random() * 30;
+    b.style.width = size + 'px';
+    b.style.height = size + 'px';
+    b.style.left = Math.random() * 100 + '%';
+    b.style.animationDuration = 8 + Math.random() * 12 + 's';
+    b.style.animationDelay = Math.random() * 10 + 's';
+    container.appendChild(b);
+  }
+}
+
+// ===== EVENT LISTENERS =====
+$('btn-play').addEventListener('click', () => {
+  showScreen('game');
+  startRound();
+});
+
+$('level-selector').addEventListener('change', (e) => {
+  state.currentLevel = parseInt(e.target.value, 10);
+  saveState();
+  updateHomeUI();
+});
+
+$('btn-stats').addEventListener('click', () => {
+  updateStatsUI();
+  showScreen('stats');
+});
+
+$('btn-home-from-game').addEventListener('click', () => {
+  phase = 'idle';
+  updateHomeUI();
+  showScreen('home');
+});
+
+$('btn-home-from-stats').addEventListener('click', () => {
+  updateHomeUI();
+  showScreen('home');
+});
+
+$('btn-submit').addEventListener('click', () => {
+  if (phase === 'recall') evaluateAnswers();
+});
+
+$('btn-next').addEventListener('click', () => {
+  $('result-overlay').classList.remove('active');
+  $('game-score').textContent = state.score;
+  startRound();
+});
+
+$('btn-retry').addEventListener('click', () => {
+  $('result-overlay').classList.remove('active');
+  startRound();
+});
+
+// ===== INIT =====
+loadState();
+updateHomeUI();
+createBubbles();
+</script>
+</body>
+</html>
