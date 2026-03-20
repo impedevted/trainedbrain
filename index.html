@@ -3,774 +3,1095 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hidden Fish 🐠 — Memory Training Game</title>
+<title>Memory Trainer</title>
 <style>
-/* ===== RESET & BASE ===== */
+/* ==============================
+   CSS RESET & BASE
+   ============================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --surface2: #0f3460;
+  --accent: #e94560;
+  --accent2: #f5a623;
+  --success: #2ecc71;
+  --danger: #e74c3c;
+  --warning: #f39c12;
+  --text: #eee;
+  --text-muted: #aab;
+  --radius: 12px;
+  --shadow: 0 4px 20px rgba(0,0,0,.3);
+  --fish-accent: #00b4d8;
+  --food-accent: #ff6b6b;
+}
+
+html { font-size: 16px; }
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(180deg, #0a1628 0%, #0f2b4a 30%, #1a4a6e 60%, #2d8a9e 100%);
-  color: #e0f0ff;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   overflow-x: hidden;
+  line-height: 1.5;
 }
 
-/* ===== BUBBLES BACKGROUND ===== */
-.bubbles {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  pointer-events: none; z-index: 0; overflow: hidden;
-}
-.bubble {
-  position: absolute; bottom: -40px; border-radius: 50%;
-  background: rgba(255,255,255,0.06);
-  animation: rise linear infinite;
-}
-@keyframes rise {
-  0% { transform: translateY(0) scale(1); opacity: 0.6; }
-  100% { transform: translateY(-110vh) scale(0.3); opacity: 0; }
-}
-
-/* ===== LAYOUT ===== */
-.screen { display: none; flex-direction: column; align-items: center; position: relative; z-index: 1; }
-.screen.active { display: flex; }
-
-/* ===== HOME SCREEN ===== */
-#home { justify-content: center; min-height: 100vh; padding: 20px; gap: 24px; }
-
-.title {
-  font-size: clamp(2rem, 6vw, 3.5rem); font-weight: 800;
-  text-align: center;
-  background: linear-gradient(135deg, #56ccf2, #2f80ed, #f7971e);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-  animation: shimmer 3s ease-in-out infinite alternate;
-}
-@keyframes shimmer {
-  0% { filter: brightness(1); }
-  100% { filter: brightness(1.3); }
-}
-
-.subtitle { font-size: 1rem; opacity: 0.7; text-align: center; }
-
-.stats-bar {
-  display: flex; gap: 24px; flex-wrap: wrap; justify-content: center;
-  background: rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 24px;
-}
-.stat-item { text-align: center; }
-.stat-value { font-size: 1.4rem; font-weight: 700; color: #56ccf2; }
-.stat-label { font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; }
+/* ==============================
+   SHARED COMPONENTS
+   ============================== */
+.screen { display: none; min-height: 100vh; padding: 20px; }
+.screen.active { display: flex; flex-direction: column; align-items: center; }
 
 .btn {
-  border: none; border-radius: 12px; padding: 14px 40px; font-size: 1.1rem;
-  font-weight: 700; cursor: pointer; transition: all 0.2s;
-  text-transform: uppercase; letter-spacing: 1px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 28px; border: none; border-radius: var(--radius);
+  font-size: 1rem; font-weight: 600; cursor: pointer;
+  transition: transform .15s, box-shadow .15s, background .2s;
+  color: #fff; text-decoration: none;
 }
-.btn:active { transform: scale(0.96); }
-.btn-primary {
-  background: linear-gradient(135deg, #f7971e, #ffd200);
-  color: #1a1a2e; box-shadow: 0 4px 20px rgba(247,151,30,0.4);
+.btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.3); }
+.btn:active { transform: translateY(0); }
+.btn-primary { background: var(--accent); }
+.btn-success { background: var(--success); }
+.btn-warning { background: var(--warning); color: #222; }
+.btn-secondary { background: var(--surface2); }
+.btn-back {
+  position: absolute; top: 20px; left: 20px;
+  background: rgba(255,255,255,.1); padding: 8px 16px; font-size: .9rem;
+  backdrop-filter: blur(4px);
 }
-.btn-primary:hover { box-shadow: 0 6px 30px rgba(247,151,30,0.6); transform: translateY(-2px); }
-.btn-secondary {
-  background: rgba(255,255,255,0.12); color: #e0f0ff;
-  border: 1px solid rgba(255,255,255,0.2);
-}
-.btn-secondary:hover { background: rgba(255,255,255,0.2); }
 
-.level-select-row {
-  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center;
+.badge {
+  display: inline-block; padding: 4px 10px; border-radius: 20px;
+  font-size: .75rem; background: rgba(255,255,255,.1); margin: 2px;
 }
-.level-select-row select {
-  background: rgba(255,255,255,0.1); color: #e0f0ff; border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 8px; padding: 8px 12px; font-size: 0.95rem;
-}
-.level-select-row select option { background: #0f2b4a; color: #e0f0ff; }
 
-/* ===== GAME SCREEN ===== */
-#game { min-height: 100vh; padding: 16px; gap: 12px; }
+/* ==============================
+   MAIN MENU
+   ============================== */
+#menu-screen {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  justify-content: flex-start; padding-top: 30px;
+}
+
+.stats-bar {
+  display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+  background: rgba(255,255,255,.05); border-radius: var(--radius);
+  padding: 12px 24px; margin-bottom: 30px; width: 100%; max-width: 700px;
+  backdrop-filter: blur(8px);
+}
+.stat-item { text-align: center; }
+.stat-item .stat-value { font-size: 1.4rem; font-weight: 700; color: var(--accent2); }
+.stat-item .stat-label { font-size: .75rem; color: var(--text-muted); }
+
+.hero { text-align: center; margin-bottom: 40px; }
+.hero h1 { font-size: 2.8rem; margin-bottom: 8px; }
+.hero p { font-size: 1.1rem; color: var(--text-muted); }
+
+.game-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px; width: 100%; max-width: 750px;
+}
+
+.game-card {
+  background: var(--surface); border-radius: var(--radius); padding: 28px;
+  text-align: center; transition: transform .25s, box-shadow .25s;
+  border: 1px solid rgba(255,255,255,.06); cursor: default;
+}
+.game-card:hover { transform: translateY(-6px); box-shadow: 0 12px 40px rgba(0,0,0,.4); }
+.game-card .card-icon { font-size: 3rem; margin-bottom: 12px; }
+.game-card h2 { font-size: 1.4rem; margin-bottom: 8px; }
+.game-card .card-desc { color: var(--text-muted); font-size: .9rem; margin-bottom: 14px; }
+.game-card .card-badges { margin-bottom: 16px; }
+.game-card .card-progress { font-size: .8rem; color: var(--accent2); margin-bottom: 16px; min-height: 1.2em; }
+.game-card .btn { width: 100%; }
+
+.footer-note { margin-top: 40px; color: var(--text-muted); font-size: .85rem; }
+
+/* ==============================
+   HIDDEN FISH GAME
+   ============================== */
+#fish-screen {
+  background: linear-gradient(180deg, #0a2a4a 0%, #0d3b66 40%, #144a7a 100%);
+  position: relative;
+}
 
 .game-header {
-  width: 100%; max-width: 540px;
-  display: flex; justify-content: space-between; align-items: center;
-  flex-wrap: wrap; gap: 8px;
+  display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
+  justify-content: center; margin-bottom: 20px; width: 100%; max-width: 600px;
 }
-.game-header .level-badge {
-  background: rgba(255,255,255,0.12); border-radius: 8px; padding: 6px 14px;
-  font-weight: 600; font-size: 0.9rem;
+.info-box {
+  background: rgba(255,255,255,.08); padding: 8px 16px; border-radius: 8px;
+  font-size: .9rem; text-align: center;
 }
-.game-header .score-display { font-size: 1.1rem; font-weight: 700; color: #ffd200; }
+.info-box .label { font-size: .7rem; color: var(--text-muted); text-transform: uppercase; }
+.info-box .value { font-weight: 700; }
 
-.progress-bar-container {
-  width: 100%; max-width: 540px; height: 6px;
-  background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;
-}
-.progress-bar-fill {
-  height: 100%; background: linear-gradient(90deg, #56ccf2, #2f80ed);
-  border-radius: 3px; transition: width 0.4s;
-}
+#fish-screen .info-box .value { color: var(--fish-accent); }
+#food-screen .info-box .value { color: var(--food-accent); }
+#fish-screen .info-box { background: rgba(0,180,216,.15); }
+#food-screen .info-box { background: rgba(255,107,107,.15); }
 
-/* ===== GRID ===== */
-.grid-wrapper {
-  position: relative;
-  width: min(80vw, 480px); aspect-ratio: 1;
-  display: flex; align-items: center; justify-content: center;
-}
-.grid-container {
-  display: grid; gap: 4px; width: 100%; height: 100%;
-}
-.cell {
-  background: rgba(255,255,255,0.1);
-  border: 2px solid rgba(255,255,255,0.15);
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: clamp(1.2rem, 3vw, 2rem);
-  cursor: default;
-  transition: all 0.3s ease;
-  user-select: none;
-  position: relative;
-  overflow: hidden;
-}
-.cell.clickable { cursor: pointer; }
-.cell.clickable:hover {
-  background: rgba(86,204,242,0.25); border-color: rgba(86,204,242,0.5);
-  transform: scale(1.04);
-}
-.cell.selected {
-  background: rgba(86,204,242,0.3); border-color: #56ccf2;
-}
-.cell.reveal {
-  background: rgba(56,204,242,0.2); border-color: #56ccf2;
-  animation: fishPop 0.4s ease-out;
-}
-@keyframes fishPop {
-  0% { transform: scale(0.5); opacity: 0; }
-  70% { transform: scale(1.15); }
-  100% { transform: scale(1); opacity: 1; }
-}
-.cell.correct {
-  background: rgba(46,204,113,0.35); border-color: #2ecc71;
-  animation: correctPulse 0.5s ease;
-}
-@keyframes correctPulse {
-  0%,100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-}
-.cell.wrong {
-  background: rgba(231,76,60,0.35); border-color: #e74c3c;
-  animation: wrongShake 0.4s ease;
-}
-@keyframes wrongShake {
-  0%,100% { transform: translateX(0); }
-  25% { transform: translateX(-6px); }
-  75% { transform: translateX(6px); }
-}
-.cell.missed {
-  background: rgba(241,196,15,0.3); border-color: #f1c40f;
+.phase-text {
+  font-size: 1.3rem; font-weight: 600; margin-bottom: 16px;
+  min-height: 2em; text-align: center;
 }
 
-/* ===== COUNTDOWN OVERLAY ===== */
-.countdown-overlay {
-  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(10,22,40,0.7); border-radius: 12px;
-  z-index: 5; pointer-events: none;
+.fish-grid {
+  display: grid; gap: 4px; margin-bottom: 20px;
 }
-.countdown-number {
-  font-size: 4rem; font-weight: 900; color: #ffd200;
-  animation: countPop 0.6s ease-out;
+.fish-cell {
+  width: 100%; aspect-ratio: 1; border-radius: 8px;
+  background: rgba(255,255,255,.08); display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; cursor: default; transition: background .2s, transform .15s;
+  border: 2px solid transparent; user-select: none;
 }
-@keyframes countPop {
-  0% { transform: scale(2); opacity: 0; }
-  60% { transform: scale(0.9); }
-  100% { transform: scale(1); opacity: 1; }
-}
+.fish-cell.clickable { cursor: pointer; }
+.fish-cell.clickable:hover { background: rgba(0,180,216,.2); transform: scale(1.05); }
+.fish-cell.revealed { background: rgba(0,180,216,.25); }
+.fish-cell.selected { background: rgba(0,180,216,.35); border-color: var(--fish-accent); }
+.fish-cell.correct { background: rgba(46,204,113,.3); border-color: var(--success); }
+.fish-cell.wrong { background: rgba(231,76,60,.3); border-color: var(--danger); }
+.fish-cell.missed { background: rgba(243,156,18,.25); border-color: var(--warning); }
 
-.game-status {
-  font-size: 1rem; font-weight: 600; min-height: 1.4em;
-  text-align: center; opacity: 0.8;
-}
+.game-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin-top: 16px; }
 
-/* ===== RESULT OVERLAY ===== */
-#result-overlay {
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(10,22,40,0.85); z-index: 10;
-  display: none; align-items: center; justify-content: center;
-  padding: 20px;
+.results-panel {
+  text-align: center; background: rgba(0,0,0,.2); border-radius: var(--radius);
+  padding: 24px; margin-top: 16px; max-width: 450px; width: 100%;
 }
-#result-overlay.active { display: flex; }
-
-.result-card {
-  background: linear-gradient(160deg, #132742, #1a4a6e);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 20px; padding: 32px; max-width: 420px; width: 100%;
-  text-align: center; display: flex; flex-direction: column; gap: 16px;
-  animation: slideUp 0.4s ease-out;
-}
-@keyframes slideUp {
-  0% { transform: translateY(40px); opacity: 0; }
-  100% { transform: translateY(0); opacity: 1; }
-}
-.result-card h2 { font-size: 1.6rem; }
-.result-card .accuracy-big {
-  font-size: 3rem; font-weight: 900;
-  background: linear-gradient(135deg, #56ccf2, #2f80ed);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-.result-card .result-details {
-  display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;
-}
-.result-card .result-stat { text-align: center; }
-.result-card .result-stat span { display: block; }
-.result-card .result-stat .val { font-size: 1.3rem; font-weight: 700; }
-
+.results-panel h3 { font-size: 1.3rem; margin-bottom: 12px; }
+.results-panel .result-line { margin: 6px 0; font-size: 1rem; }
 .tip-box {
-  background: rgba(255,255,255,0.08); border-radius: 12px; padding: 14px;
-  font-size: 0.85rem; line-height: 1.5; text-align: left;
-  border-left: 3px solid #f7971e;
+  margin-top: 16px; padding: 12px; border-radius: 8px;
+  font-size: .85rem; text-align: left; line-height: 1.5;
 }
-.tip-box .tip-label { font-weight: 700; color: #f7971e; margin-bottom: 4px; }
+#fish-screen .tip-box { background: rgba(0,180,216,.1); }
+#food-screen .tip-box { background: rgba(255,107,107,.1); }
 
-.result-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
-
-/* ===== STATS SCREEN ===== */
-#stats { min-height: 100vh; padding: 24px; gap: 20px; justify-content: center; }
-.stats-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 16px; width: 100%; max-width: 500px;
+.countdown-overlay {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.6); z-index: 100; font-size: 5rem; font-weight: 700;
+  color: var(--fish-accent); animation: pulse .5s ease-in-out infinite alternate;
 }
-.stats-card {
-  background: rgba(255,255,255,0.08); border-radius: 12px; padding: 18px;
-  text-align: center;
-}
-.stats-card .val { font-size: 1.6rem; font-weight: 800; color: #56ccf2; }
-.stats-card .lbl { font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; margin-top: 4px; }
+@keyframes pulse { from { transform: scale(1); } to { transform: scale(1.15); } }
 
-/* ===== RESPONSIVE ===== */
-@media (max-width: 480px) {
-  .grid-wrapper { width: 92vw; }
-  .game-header { font-size: 0.85rem; }
-  .result-card { padding: 24px 18px; }
-  .stats-bar { gap: 14px; padding: 10px 16px; }
+/* ==============================
+   FOOD GAME
+   ============================== */
+#food-screen {
+  background: linear-gradient(180deg, #2d1b2e 0%, #3d2b3e 40%, #4a2c4a 100%);
+  position: relative;
+}
+
+.timer-bar-container {
+  width: 100%; max-width: 500px; height: 8px; background: rgba(255,255,255,.1);
+  border-radius: 4px; margin-bottom: 16px; overflow: hidden;
+}
+.timer-bar {
+  height: 100%; border-radius: 4px; transition: width .1s linear, background .3s;
+  background: var(--success);
+}
+.timer-bar.warning { background: var(--warning); }
+.timer-bar.danger { background: var(--danger); }
+
+.food-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 10px; width: 100%; max-width: 700px; margin-bottom: 20px;
+}
+
+.food-card {
+  background: rgba(255,255,255,.08); border-radius: 10px; padding: 12px 6px;
+  text-align: center; transition: transform .15s, border-color .2s, background .2s;
+  border: 2px solid transparent; cursor: default; user-select: none;
+}
+.food-card .food-emoji { font-size: 2.2rem; display: block; margin-bottom: 4px; }
+.food-card .food-name { font-size: .7rem; color: var(--text-muted); }
+.food-card.selectable { cursor: pointer; }
+.food-card.selectable:hover { background: rgba(255,107,107,.15); transform: scale(1.05); }
+.food-card.selected { border-color: var(--food-accent); background: rgba(255,107,107,.2); }
+.food-card.correct-pick { border-color: var(--success); background: rgba(46,204,113,.2); }
+.food-card.wrong-pick { border-color: var(--danger); background: rgba(231,76,60,.2); }
+.food-card.missed-pick { border-color: var(--warning); background: rgba(243,156,18,.2); }
+
+/* ==============================
+   PERFECT BANNER
+   ============================== */
+.perfect-banner {
+  font-size: 1.5rem; font-weight: 700; color: var(--accent2);
+  animation: bannerPop .5s ease-out; margin-bottom: 8px;
+}
+@keyframes bannerPop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ==============================
+   RESPONSIVE
+   ============================== */
+@media (max-width: 600px) {
+  .hero h1 { font-size: 2rem; }
+  .game-cards { grid-template-columns: 1fr; }
+  .fish-cell { font-size: 1.2rem; }
+  .food-card .food-emoji { font-size: 1.8rem; }
+  .food-grid { grid-template-columns: repeat(auto-fill, minmax(75px, 1fr)); gap: 6px; }
+  .btn { padding: 10px 20px; font-size: .9rem; }
+  .stats-bar { gap: 12px; padding: 10px 16px; }
+}
+@media (max-width: 400px) {
+  .screen { padding: 12px; }
+  .fish-grid { gap: 3px; }
+  .food-grid { grid-template-columns: repeat(auto-fill, minmax(65px, 1fr)); }
 }
 </style>
 </head>
 <body>
 
-<!-- Animated bubbles background -->
-<div class="bubbles" id="bubbles"></div>
-
-<!-- ===== HOME SCREEN ===== -->
-<div id="home" class="screen active">
-  <div class="title">Hidden Fish 🐠</div>
-  <div class="subtitle">A visual memory training game — find the hidden fish!</div>
-
-  <div class="stats-bar">
+<!-- ==============================
+     MAIN MENU SCREEN
+     ============================== -->
+<div id="menu-screen" class="screen active">
+  <div class="stats-bar" id="stats-bar">
     <div class="stat-item">
-      <div class="stat-value" id="home-level">1</div>
-      <div class="stat-label">Level</div>
+      <div class="stat-value" id="stat-levels">0</div>
+      <div class="stat-label">Levels Completed</div>
     </div>
     <div class="stat-item">
-      <div class="stat-value" id="home-highscore">0</div>
-      <div class="stat-label">High Score</div>
-    </div>
-    <div class="stat-item">
-      <div class="stat-value" id="home-accuracy">—</div>
+      <div class="stat-value" id="stat-accuracy">0%</div>
       <div class="stat-label">Avg Accuracy</div>
     </div>
+    <div class="stat-item">
+      <div class="stat-value" id="stat-streak">0</div>
+      <div class="stat-label">Best Streak</div>
+    </div>
   </div>
 
-  <button class="btn btn-primary" id="btn-play">▶ Play</button>
-
-  <div class="level-select-row">
-    <label for="level-selector">Jump to level:</label>
-    <select id="level-selector"></select>
+  <div class="hero">
+    <h1>Memory Trainer</h1>
+    <p>Train your brain. One game at a time.</p>
   </div>
 
-  <button class="btn btn-secondary" id="btn-stats">📊 Stats</button>
+  <div class="game-cards">
+    <div class="game-card">
+      <div class="card-icon">&#x1F420;&#x1F41F;&#x1F421;</div>
+      <h2>Hidden Fish</h2>
+      <p class="card-desc">Watch where the fish hide, then find them all from memory!</p>
+      <div class="card-badges">
+        <span class="badge">&#x1F9E9; Spatial Memory</span>
+        <span class="badge">&#x1F4D0; Grid-Based</span>
+        <span class="badge">100 Levels</span>
+      </div>
+      <div class="card-progress" id="fish-card-progress"></div>
+      <button class="btn btn-primary" onclick="showGame('fish')">Play Hidden Fish</button>
+    </div>
+
+    <div class="game-card">
+      <div class="card-icon">&#x1F355;&#x1F35C;&#x1F363;</div>
+      <h2>What Did You Eat?</h2>
+      <p class="card-desc">Food flashes on screen &mdash; memorize every dish, then recall them all!</p>
+      <div class="card-badges">
+        <span class="badge">&#x1F441;&#xFE0F; Visual Memory</span>
+        <span class="badge">&#x1F37D;&#xFE0F; Food Recognition</span>
+        <span class="badge">50 Levels</span>
+      </div>
+      <div class="card-progress" id="food-card-progress"></div>
+      <button class="btn btn-primary" onclick="showGame('food')">Play What Did You Eat?</button>
+    </div>
+  </div>
+
+  <p class="footer-note">More games coming soon...</p>
 </div>
 
-<!-- ===== GAME SCREEN ===== -->
-<div id="game" class="screen">
+<!-- ==============================
+     HIDDEN FISH SCREEN
+     ============================== -->
+<div id="fish-screen" class="screen">
+  <button class="btn btn-back" onclick="showMainMenu()">&#x1F3E0; Back to Menu</button>
   <div class="game-header">
-    <div class="level-badge" id="game-level">Level 1</div>
-    <div class="score-display">Score: <span id="game-score">0</span></div>
+    <div class="info-box"><div class="label">Level</div><div class="value" id="fish-level">1</div></div>
+    <div class="info-box"><div class="label">Score</div><div class="value" id="fish-score">0</div></div>
+    <div class="info-box"><div class="label">Streak</div><div class="value" id="fish-streak">0</div></div>
+    <div class="info-box"><div class="label">High Score</div><div class="value" id="fish-highscore">0</div></div>
   </div>
-  <div class="progress-bar-container">
-    <div class="progress-bar-fill" id="progress-fill"></div>
-  </div>
-  <div class="game-status" id="game-status">Get ready...</div>
-  <div class="grid-wrapper" id="grid-wrapper">
-    <div class="grid-container" id="grid"></div>
-  </div>
-  <button class="btn btn-secondary" id="btn-submit" style="display:none;">✔ Submit Answers</button>
-  <button class="btn btn-secondary" id="btn-home-from-game" style="margin-top:8px;">← Home</button>
+  <div class="phase-text" id="fish-phase-text"></div>
+  <div id="fish-grid-container" class="fish-grid"></div>
+  <div id="fish-results-container"></div>
+  <div class="game-actions" id="fish-actions"></div>
 </div>
 
-<!-- ===== RESULT OVERLAY ===== -->
-<div id="result-overlay">
-  <div class="result-card">
-    <h2 id="result-title">Round Complete!</h2>
-    <div class="accuracy-big" id="result-accuracy">100%</div>
-    <div class="result-details">
-      <div class="result-stat"><span class="val" id="res-correct">0</span><span>Correct</span></div>
-      <div class="result-stat"><span class="val" id="res-wrong">0</span><span>Wrong</span></div>
-      <div class="result-stat"><span class="val" id="res-missed">0</span><span>Missed</span></div>
-      <div class="result-stat"><span class="val" id="res-points">0</span><span>Points</span></div>
-    </div>
-    <div class="tip-box">
-      <div class="tip-label">💡 Memory Tip</div>
-      <div id="tip-text"></div>
-    </div>
-    <div class="result-buttons">
-      <button class="btn btn-secondary" id="btn-retry">🔄 Retry</button>
-      <button class="btn btn-primary" id="btn-next" style="display:none;">Next Level →</button>
-    </div>
+<!-- ==============================
+     FOOD GAME SCREEN
+     ============================== -->
+<div id="food-screen" class="screen">
+  <button class="btn btn-back" onclick="showMainMenu()">&#x1F3E0; Back to Menu</button>
+  <div class="game-header">
+    <div class="info-box"><div class="label">Level</div><div class="value" id="food-level">1</div></div>
+    <div class="info-box"><div class="label">Score</div><div class="value" id="food-score">0</div></div>
+    <div class="info-box"><div class="label">Streak</div><div class="value" id="food-streak">0</div></div>
+    <div class="info-box"><div class="label">High Score</div><div class="value" id="food-highscore">0</div></div>
   </div>
+  <div class="phase-text" id="food-phase-text"></div>
+  <div class="timer-bar-container" id="food-timer-container" style="display:none;">
+    <div class="timer-bar" id="food-timer-bar"></div>
+  </div>
+  <div id="food-grid-container" class="food-grid"></div>
+  <div id="food-results-container"></div>
+  <div class="game-actions" id="food-actions"></div>
 </div>
 
-<!-- ===== STATS SCREEN ===== -->
-<div id="stats" class="screen">
-  <h2>📊 Your Stats</h2>
-  <div class="stats-grid">
-    <div class="stats-card"><div class="val" id="st-level">1</div><div class="lbl">Current Level</div></div>
-    <div class="stats-card"><div class="val" id="st-highscore">0</div><div class="lbl">High Score</div></div>
-    <div class="stats-card"><div class="val" id="st-played">0</div><div class="lbl">Rounds Played</div></div>
-    <div class="stats-card"><div class="val" id="st-accuracy">—</div><div class="lbl">Avg Accuracy</div></div>
-    <div class="stats-card"><div class="val" id="st-perfect">0</div><div class="lbl">Perfect Rounds</div></div>
-    <div class="stats-card"><div class="val" id="st-streak">0</div><div class="lbl">Best Streak</div></div>
-  </div>
-  <button class="btn btn-secondary" id="btn-home-from-stats">← Back</button>
-</div>
+<!-- Countdown overlay -->
+<div id="countdown-overlay" class="countdown-overlay" style="display:none;"></div>
 
 <script>
-/* =============================================================
-   HIDDEN FISH — Memory Training Game
-   ============================================================= */
+/* ================================================================
+   LEVEL CONFIGURATION
+   ================================================================ */
 
-// ===== LEVEL CONFIGURATION =====
-// Each entry: [maxLevel, rows, cols, fishCount]
-const LEVEL_TABLE = [
-  [5,   4, 4,  2],
-  [10,  4, 4,  3],
-  [15,  4, 4,  4],
-  [20,  4, 5,  4],
-  [25,  4, 5,  5],
-  [30,  5, 5,  5],
-  [35,  5, 5,  6],
-  [40,  5, 6,  6],
-  [45,  5, 6,  7],
-  [50,  6, 6,  7],
-  [55,  6, 6,  8],
-  [60,  6, 7,  8],
-  [65,  6, 7,  9],
-  [70,  7, 7,  9],
-  [75,  7, 7, 10],
-  [80,  7, 8, 10],
-  [85,  7, 8, 11],
-  [90,  8, 8, 11],
-  [95,  8, 8, 12],
-  [100, 8, 8, 13],
+function getLevelConfig(level) {
+  if (level <= 5)  return { rows: 4, cols: 4, fishCount: 2 };
+  if (level <= 10) return { rows: 4, cols: 4, fishCount: 3 };
+  if (level <= 15) return { rows: 4, cols: 4, fishCount: 4 };
+  if (level <= 20) return { rows: 4, cols: 5, fishCount: 4 };
+  if (level <= 25) return { rows: 4, cols: 5, fishCount: 5 };
+  if (level <= 30) return { rows: 5, cols: 5, fishCount: 6 };
+  if (level <= 35) return { rows: 5, cols: 5, fishCount: 7 };
+  if (level <= 40) return { rows: 5, cols: 6, fishCount: 8 };
+  if (level <= 45) return { rows: 6, cols: 6, fishCount: 9 };
+  if (level <= 50) return { rows: 6, cols: 6, fishCount: 11 };
+  if (level <= 60) return { rows: 6, cols: 7, fishCount: 13 };
+  if (level <= 70) return { rows: 7, cols: 7, fishCount: 15 };
+  if (level <= 80) return { rows: 7, cols: 8, fishCount: 17 };
+  if (level <= 90) return { rows: 8, cols: 8, fishCount: 20 };
+  return { rows: 8, cols: 9, fishCount: 24 };
+}
+
+function getFoodLevelConfig(level) {
+  if (level <= 5)  return { foodCount: 4,  displaySeconds: 3.0, optionPoolSize: 10 };
+  if (level <= 10) return { foodCount: 6,  displaySeconds: 3.5, optionPoolSize: 12 };
+  if (level <= 15) return { foodCount: 8,  displaySeconds: 4.0, optionPoolSize: 14 };
+  if (level <= 20) return { foodCount: 10, displaySeconds: 4.5, optionPoolSize: 16 };
+  if (level <= 25) return { foodCount: 12, displaySeconds: 5.0, optionPoolSize: 20 };
+  if (level <= 30) return { foodCount: 15, displaySeconds: 5.5, optionPoolSize: 24 };
+  if (level <= 35) return { foodCount: 18, displaySeconds: 6.0, optionPoolSize: 28 };
+  if (level <= 40) return { foodCount: 22, displaySeconds: 6.5, optionPoolSize: 34 };
+  if (level <= 45) return { foodCount: 28, displaySeconds: 7.0, optionPoolSize: 42 };
+  return { foodCount: 35, displaySeconds: 8.0, optionPoolSize: 50 };
+}
+
+/* ================================================================
+   FOOD LIBRARY (74 items)
+   ================================================================ */
+
+const FOOD_LIBRARY = [
+  { id:1,  name:"Pizza",      emoji:"\u{1F355}", category:"italian" },
+  { id:2,  name:"Spaghetti",  emoji:"\u{1F35D}", category:"italian" },
+  { id:3,  name:"Bread",      emoji:"\u{1F35E}", category:"bakery" },
+  { id:4,  name:"Croissant",  emoji:"\u{1F950}", category:"bakery" },
+  { id:5,  name:"Bagel",      emoji:"\u{1F96F}", category:"bakery" },
+  { id:6,  name:"Baguette",   emoji:"\u{1F956}", category:"bakery" },
+  { id:7,  name:"Pretzel",    emoji:"\u{1F968}", category:"snack" },
+  { id:8,  name:"Waffle",     emoji:"\u{1F9C7}", category:"breakfast" },
+  { id:9,  name:"Pancake",    emoji:"\u{1F95E}", category:"breakfast" },
+  { id:10, name:"Egg",        emoji:"\u{1F373}", category:"breakfast" },
+  { id:11, name:"Bacon",      emoji:"\u{1F953}", category:"breakfast" },
+  { id:12, name:"Sushi",      emoji:"\u{1F363}", category:"japanese" },
+  { id:13, name:"Ramen",      emoji:"\u{1F35C}", category:"japanese" },
+  { id:14, name:"Rice Ball",  emoji:"\u{1F359}", category:"japanese" },
+  { id:15, name:"Bento",      emoji:"\u{1F371}", category:"japanese" },
+  { id:16, name:"Fried Rice", emoji:"\u{1F35A}", category:"asian" },
+  { id:17, name:"Dumpling",   emoji:"\u{1F95F}", category:"asian" },
+  { id:18, name:"Curry",      emoji:"\u{1F35B}", category:"asian" },
+  { id:19, name:"Noodles",    emoji:"\u{1F35C}", category:"asian" },
+  { id:20, name:"Hamburger",  emoji:"\u{1F354}", category:"american" },
+  { id:21, name:"Hot Dog",    emoji:"\u{1F32D}", category:"american" },
+  { id:22, name:"Fries",      emoji:"\u{1F35F}", category:"american" },
+  { id:23, name:"Popcorn",    emoji:"\u{1F37F}", category:"american" },
+  { id:24, name:"Sandwich",   emoji:"\u{1F96A}", category:"snack" },
+  { id:25, name:"Taco",       emoji:"\u{1F32E}", category:"mexican" },
+  { id:26, name:"Burrito",    emoji:"\u{1F32F}", category:"mexican" },
+  { id:27, name:"Salsa",      emoji:"\u{1FAD9}", category:"mexican" },
+  { id:28, name:"Steak",      emoji:"\u{1F969}", category:"meat" },
+  { id:29, name:"Chicken",    emoji:"\u{1F357}", category:"meat" },
+  { id:30, name:"Drumstick",  emoji:"\u{1F356}", category:"meat" },
+  { id:31, name:"Shrimp",     emoji:"\u{1F364}", category:"seafood" },
+  { id:32, name:"Fish",       emoji:"\u{1F41F}", category:"seafood" },
+  { id:33, name:"Crab",       emoji:"\u{1F980}", category:"seafood" },
+  { id:34, name:"Lobster",    emoji:"\u{1F99E}", category:"seafood" },
+  { id:35, name:"Oyster",     emoji:"\u{1F9AA}", category:"seafood" },
+  { id:36, name:"Salad",      emoji:"\u{1F957}", category:"healthy" },
+  { id:37, name:"Broccoli",   emoji:"\u{1F966}", category:"vegetable" },
+  { id:38, name:"Corn",       emoji:"\u{1F33D}", category:"vegetable" },
+  { id:39, name:"Carrot",     emoji:"\u{1F955}", category:"vegetable" },
+  { id:40, name:"Avocado",    emoji:"\u{1F951}", category:"healthy" },
+  { id:41, name:"Mushroom",   emoji:"\u{1F344}", category:"vegetable" },
+  { id:42, name:"Tomato",     emoji:"\u{1F345}", category:"vegetable" },
+  { id:43, name:"Pepper",     emoji:"\u{1FAD1}", category:"vegetable" },
+  { id:44, name:"Onion",      emoji:"\u{1F9C5}", category:"vegetable" },
+  { id:45, name:"Garlic",     emoji:"\u{1F9C4}", category:"vegetable" },
+  { id:46, name:"Potato",     emoji:"\u{1F954}", category:"vegetable" },
+  { id:47, name:"Apple",      emoji:"\u{1F34E}", category:"fruit" },
+  { id:48, name:"Banana",     emoji:"\u{1F34C}", category:"fruit" },
+  { id:49, name:"Strawberry", emoji:"\u{1F353}", category:"fruit" },
+  { id:50, name:"Grapes",     emoji:"\u{1F347}", category:"fruit" },
+  { id:51, name:"Watermelon", emoji:"\u{1F349}", category:"fruit" },
+  { id:52, name:"Pineapple",  emoji:"\u{1F34D}", category:"fruit" },
+  { id:53, name:"Mango",      emoji:"\u{1F96D}", category:"fruit" },
+  { id:54, name:"Peach",      emoji:"\u{1F351}", category:"fruit" },
+  { id:55, name:"Cherry",     emoji:"\u{1F352}", category:"fruit" },
+  { id:56, name:"Lemon",      emoji:"\u{1F34B}", category:"fruit" },
+  { id:57, name:"Coconut",    emoji:"\u{1F965}", category:"fruit" },
+  { id:58, name:"Kiwi",       emoji:"\u{1F95D}", category:"fruit" },
+  { id:59, name:"Blueberry",  emoji:"\u{1FAD0}", category:"fruit" },
+  { id:60, name:"Melon",      emoji:"\u{1F348}", category:"fruit" },
+  { id:61, name:"Cake",       emoji:"\u{1F382}", category:"dessert" },
+  { id:62, name:"Ice Cream",  emoji:"\u{1F366}", category:"dessert" },
+  { id:63, name:"Donut",      emoji:"\u{1F369}", category:"dessert" },
+  { id:64, name:"Cookie",     emoji:"\u{1F36A}", category:"dessert" },
+  { id:65, name:"Chocolate",  emoji:"\u{1F36B}", category:"dessert" },
+  { id:66, name:"Candy",      emoji:"\u{1F36C}", category:"dessert" },
+  { id:67, name:"Lollipop",   emoji:"\u{1F36D}", category:"dessert" },
+  { id:68, name:"Honey",      emoji:"\u{1F36F}", category:"dessert" },
+  { id:69, name:"Pie",        emoji:"\u{1F967}", category:"dessert" },
+  { id:70, name:"Pudding",    emoji:"\u{1F36E}", category:"dessert" },
+  { id:71, name:"Cheese",     emoji:"\u{1F9C0}", category:"dairy" },
+  { id:72, name:"Butter",     emoji:"\u{1F9C8}", category:"dairy" },
+  { id:73, name:"Falafel",    emoji:"\u{1F9C6}", category:"middle_east" },
+  { id:74, name:"Salt",       emoji:"\u{1F9C2}", category:"condiment" },
 ];
 
-/** Returns { rows, cols, fishCount } for a given level (1–100). */
-function getLevelConfig(level) {
-  level = Math.max(1, Math.min(100, level));
-  for (const [maxLvl, rows, cols, fishCount] of LEVEL_TABLE) {
-    if (level <= maxLvl) return { rows, cols, fishCount };
-  }
-  // Fallback for level > 100
-  return { rows: 8, cols: 8, fishCount: 13 };
-}
+/* ================================================================
+   MEMORY TIPS
+   ================================================================ */
 
-// ===== MEMORY TIPS LIBRARY =====
-const TIPS = {
+const FISH_TIPS = {
   basic: [
-    { title: "Chunking", text: "Try grouping fish into clusters rather than memorizing individually — your brain handles 3–4 chunks better than 8 single items." },
-    { title: "Spatial Anchoring", text: "Mentally link each fish position to a landmark (e.g., 'top-left corner', 'center row'). Anchors help recall." },
-    { title: "Breathing", text: "Take a slow breath before the hide phase — calm focus improves short-term memory encoding." },
-    { title: "Visualization", text: "Close your eyes briefly and picture the grid. Replay the image in your mind before clicking." },
-    { title: "Counting Strategy", text: "Count the fish in each row or column. Numbers are easier to hold in short-term memory than positions." },
-    { title: "Grid Scanning", text: "Scan the grid systematically — left to right, top to bottom. A consistent scan order helps build reliable recall." },
+    '<b>Chunking:</b> Group fish into clusters. Your brain handles 3\u20134 groups far better than many individual items.',
+    '<b>Spatial Anchoring:</b> Link each fish to a landmark \u2014 "top-left corner", "center row". Anchors aid recall.',
+    '<b>Count First:</b> Before the hide phase, count the fish. Knowing the total helps you know when you\'ve found them all.',
+    '<b>Zone Scanning:</b> Mentally divide the grid into quadrants. Scan each zone \u2014 left half, right half.',
+    '<b>Calm Focus:</b> Take a slow breath before the hide phase. Calm focus improves short-term memory encoding.',
   ],
   intermediate: [
-    { title: "The Story Method", text: "Create a quick mental story connecting all the fish positions — even a silly one sticks better than raw memory." },
-    { title: "Pattern Recognition", text: "Look for geometric shapes formed by the fish — triangles, L-shapes, lines are easier to recall than random dots." },
-    { title: "Peripheral Vision", text: "Instead of staring at each fish, try softening your gaze to take in the whole grid at once. This activates spatial memory." },
-    { title: "Mental Grid Overlay", text: "Imagine dividing the grid into quadrants. Note how many fish are in each quadrant for faster recall." },
-    { title: "Emotional Encoding", text: "React emotionally to the pattern — 'Oh, it looks like a smiley face!' Emotions strengthen memory traces." },
-    { title: "Rehearsal", text: "During the reveal phase, silently repeat the positions to yourself: 'row 2 col 3, row 4 col 1...' Verbal rehearsal reinforces visual memory." },
+    '<b>Story Method:</b> Create a quick story connecting the fish positions \u2014 even silly ones stick better than raw locations.',
+    '<b>Pattern Recognition:</b> Look for shapes formed by fish positions \u2014 lines, triangles, L-shapes are easier to remember.',
+    '<b>Visualization:</b> Close your eyes briefly and replay the grid image before clicking.',
+    '<b>Edge First:</b> Fish on the borders are easy anchors. Find those first, then fill in the center.',
+    '<b>Repetition Flash:</b> During the reveal, quickly scan the grid twice \u2014 once fast, once slow.',
   ],
-  advanced: [
-    { title: "Memory Palace", text: "Map each grid cell to a room in a familiar building. 'Place' each fish in its room — this ancient technique scales to large grids." },
-    { title: "Dual Coding", text: "Combine visual and verbal encoding. See the pattern AND name it. Two memory codes are more robust than one." },
-    { title: "Spaced Practice", text: "You improve faster with short daily sessions than long marathons. Your brain consolidates memory during rest." },
-    { title: "Meta-Cognitive Monitoring", text: "Before submitting, rate your confidence for each cell. Focus extra attention on low-confidence positions." },
-    { title: "Interference Reduction", text: "Try to 'clear' the previous round's pattern from your mind before starting a new one. Old memories can interfere with new ones." },
-    { title: "Speed Encoding", text: "Challenge yourself to encode the pattern in the first 2 seconds, then use the remaining time to verify. Speed builds encoding strength." },
-  ],
+  expert: [
+    '<b>Memory Palace:</b> Place each fish mentally in a familiar room. Recall by walking through the palace.',
+    '<b>Instant Chunking:</b> At this level, you have 3 seconds for 20+ fish. Don\'t analyze \u2014 let your eyes photograph the pattern.',
+    '<b>Breath Reset:</b> Stress degrades short-term memory. One deep breath before the recall phase retrieves more.',
+    '<b>Coordinate System:</b> Mentally assign row-column coordinates (e.g., "row 2 col 4") to high-priority fish.',
+    '<b>Emotion Tagging:</b> Attach a quick feeling or image to each cluster. Emotional tags are retrieved faster.',
+  ]
 };
 
-/** Returns a tip object { title, text } appropriate for the given level. */
-function showTip(level) {
-  let pool;
-  if (level <= 20) pool = TIPS.basic;
-  else if (level <= 60) pool = TIPS.intermediate;
-  else pool = TIPS.advanced;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
-
-// ===== GAME STATE =====
-let state = {
-  currentLevel: 1,
-  score: 0,
-  highScore: 0,
-  streak: 0,
-  bestStreak: 0,
-  roundsPlayed: 0,
-  perfectRounds: 0,
-  accuracyHistory: [],  // array of accuracy percentages
-  maxUnlockedLevel: 1,
+const FOOD_TIPS = {
+  beginner: [
+    '<b>Chunking:</b> Group foods by type \u2014 fruits together, meats together. Your brain stores 3\u20134 groups far better than many individual items.',
+    '<b>Color Coding:</b> Notice the colors \u2014 reds (tomato, strawberry), yellows (banana, corn). Color clusters are easy to recall.',
+    '<b>Count First:</b> Before memorizing, quickly count the items. Knowing the exact total helps you feel confident when recalling.',
+    '<b>Position Anchors:</b> Note where on screen each food appeared \u2014 top cluster, left side, center. Position is a powerful memory cue.',
+  ],
+  intermediate: [
+    '<b>Story Method:</b> Create a ridiculous meal story \u2014 "I had pizza WITH banana dipped in ice cream." Weird stories stick better.',
+    '<b>Association Chains:</b> Link each food to someone you know. "That sushi is what my friend always orders." Personal links stick longer.',
+    '<b>Category Sweep:</b> Mentally sweep through categories: "What fruits were there? What meats? What desserts?" Structure beats randomness.',
+    '<b>Rapid Scanning:</b> Train your eyes to scan in a Z-pattern across the grid \u2014 top row left-to-right, then diagonally, then bottom row.',
+  ],
+  expert: [
+    '<b>Memory Palace:</b> Imagine walking through your home, placing each food in a specific room. Recall by mentally walking back through it.',
+    '<b>Pattern Recognition:</b> At this level you have under 8 seconds for 30+ items. Don\'t read names \u2014 recognize emoji shapes instantly.',
+    '<b>Rare Items First:</b> Spot the unusual foods first (lobster, falafel) \u2014 they stand out and anchor your memory for surrounding items.',
+    '<b>Breath Reset:</b> Before the recall phase, take one deep breath. Stress degrades short-term memory \u2014 calm focus retrieves more.',
+  ]
 };
 
-// Round-specific state
-let fishPositions = new Set();  // "row-col" strings
-let playerClicks = new Set();
-let phase = 'idle'; // idle | countdown | reveal | recall | result
+/* ================================================================
+   STATE MANAGEMENT
+   ================================================================ */
 
-// ===== DOM REFERENCES =====
-const $ = id => document.getElementById(id);
-const screens = { home: $('home'), game: $('game'), stats: $('stats') };
+const STATE = {
+  fish: { level: 1, score: 0, highScore: 0, streak: 0, bestStreak: 0, levelsCompleted: 0, totalCorrect: 0, totalAttempts: 0 },
+  food: { level: 1, score: 0, highScore: 0, streak: 0, bestStreak: 0, levelsCompleted: 0, totalCorrect: 0, totalAttempts: 0 },
+};
 
-// ===== SCREEN NAVIGATION =====
-function showScreen(name) {
-  Object.values(screens).forEach(s => s.classList.remove('active'));
-  screens[name].classList.add('active');
-  $('result-overlay').classList.remove('active');
+let fishRound = { positions: [], clicked: new Set(), phase: 'idle' };
+let foodRound = { correctFoods: [], allOptions: [], selected: new Set(), phase: 'idle', timerId: null };
+
+function loadProgress() {
+  try { const d = JSON.parse(localStorage.getItem('memoryApp_hiddenFish_progress')); if (d) Object.assign(STATE.fish, d); } catch(e) {}
+  try { const d = JSON.parse(localStorage.getItem('memoryApp_foodGame_progress')); if (d) Object.assign(STATE.food, d); } catch(e) {}
 }
 
-// ===== LOCAL STORAGE =====
-const STORAGE_KEY = 'hiddenfish_save';
-
-function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveFishProgress() {
+  localStorage.setItem('memoryApp_hiddenFish_progress', JSON.stringify(STATE.fish));
+  localStorage.setItem('memoryApp_totalStats', JSON.stringify(getTotalStats()));
 }
 
-function loadState() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (saved) Object.assign(state, saved);
-  } catch (e) { /* ignore corrupt data */ }
+function saveFoodProgress() {
+  localStorage.setItem('memoryApp_foodGame_progress', JSON.stringify(STATE.food));
+  localStorage.setItem('memoryApp_totalStats', JSON.stringify(getTotalStats()));
 }
 
-// ===== HOME SCREEN =====
-function updateHomeUI() {
-  $('home-level').textContent = state.currentLevel;
-  $('home-highscore').textContent = state.highScore;
-  const avgAcc = state.accuracyHistory.length > 0
-    ? Math.round(state.accuracyHistory.reduce((a, b) => a + b, 0) / state.accuracyHistory.length)
-    : null;
-  $('home-accuracy').textContent = avgAcc !== null ? avgAcc + '%' : '—';
-  populateLevelSelector();
+function getTotalStats() {
+  const totalLevels = STATE.fish.levelsCompleted + STATE.food.levelsCompleted;
+  const totalAttempts = STATE.fish.totalAttempts + STATE.food.totalAttempts;
+  const totalCorrect = STATE.fish.totalCorrect + STATE.food.totalCorrect;
+  const avgAccuracy = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : 0;
+  const bestStreak = Math.max(STATE.fish.bestStreak, STATE.food.bestStreak);
+  return { totalLevels, avgAccuracy, bestStreak };
 }
 
-function populateLevelSelector() {
-  const sel = $('level-selector');
-  sel.innerHTML = '';
-  for (let i = 1; i <= state.maxUnlockedLevel; i++) {
-    const opt = document.createElement('option');
-    opt.value = i;
-    opt.textContent = `Level ${i}`;
-    if (i === state.currentLevel) opt.selected = true;
-    sel.appendChild(opt);
+/* ================================================================
+   NAVIGATION
+   ================================================================ */
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showMainMenu() {
+  if (foodRound.timerId) { clearInterval(foodRound.timerId); foodRound.timerId = null; }
+  fishRound.phase = 'idle';
+  foodRound.phase = 'idle';
+  updateMenuStats();
+  showScreen('menu-screen');
+}
+
+function showGame(gameName) {
+  if (gameName === 'fish') {
+    showScreen('fish-screen');
+    initFishUI();
+  } else {
+    showScreen('food-screen');
+    initFoodUI();
   }
 }
 
-// ===== GRID RENDERING =====
-function renderGrid(rows, cols) {
-  const grid = $('grid');
-  grid.innerHTML = '';
-  grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
-  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+function updateMenuStats() {
+  const stats = getTotalStats();
+  document.getElementById('stat-levels').textContent = stats.totalLevels;
+  document.getElementById('stat-accuracy').textContent = stats.avgAccuracy + '%';
+  document.getElementById('stat-streak').textContent = stats.bestStreak;
 
-  // Adjust wrapper aspect ratio for non-square grids
-  const wrapper = $('grid-wrapper');
-  wrapper.style.aspectRatio = `${cols} / ${rows}`;
+  const fp = document.getElementById('fish-card-progress');
+  const fop = document.getElementById('food-card-progress');
+  fp.textContent = STATE.fish.levelsCompleted > 0 ? 'Last reached: Level ' + STATE.fish.level + ' \u2B50' : '';
+  fop.textContent = STATE.food.levelsCompleted > 0 ? 'Last reached: Level ' + STATE.food.level + ' \u2B50' : '';
+}
+
+function renderStatsPanel() { updateMenuStats(); }
+function updateTotalStats() { updateMenuStats(); }
+
+/* ================================================================
+   UTILITIES
+   ================================================================ */
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pickRandom(arr, count) {
+  return shuffle(arr).slice(0, Math.min(count, arr.length));
+}
+
+/* ================================================================
+   HIDDEN FISH — GAME LOGIC
+   ================================================================ */
+
+function initFishUI() {
+  document.getElementById('fish-level').textContent = STATE.fish.level;
+  document.getElementById('fish-score').textContent = STATE.fish.score;
+  document.getElementById('fish-streak').textContent = STATE.fish.streak;
+  document.getElementById('fish-highscore').textContent = STATE.fish.highScore;
+  document.getElementById('fish-results-container').innerHTML = '';
+  document.getElementById('fish-grid-container').innerHTML = '';
+  document.getElementById('fish-phase-text').innerHTML = '';
+
+  const actions = document.getElementById('fish-actions');
+  actions.innerHTML = '<button class="btn btn-primary" onclick="startFishRound()">\u{1F3AE} Play Level ' + STATE.fish.level + '</button>';
+}
+
+function renderFishGrid(rows, cols) {
+  const container = document.getElementById('fish-grid-container');
+  const maxW = Math.min(500, window.innerWidth - 60);
+  const cellSize = Math.floor(maxW / cols) - 4;
+
+  container.innerHTML = '';
+  container.style.gridTemplateColumns = 'repeat(' + cols + ', ' + cellSize + 'px)';
+  container.style.gridTemplateRows = 'repeat(' + rows + ', ' + cellSize + 'px)';
+  container.style.justifyContent = 'center';
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const cell = document.createElement('div');
-      cell.className = 'cell';
-      cell.dataset.pos = `${r}-${c}`;
-      cell.addEventListener('click', () => onCellClick(r, c, cell));
-      grid.appendChild(cell);
+      cell.className = 'fish-cell';
+      cell.dataset.key = r + '-' + c;
+      container.appendChild(cell);
     }
   }
 }
 
-// ===== GAME PHASES =====
+function startFishRound() {
+  const config = getLevelConfig(STATE.fish.level);
+  fishRound = { positions: [], clicked: new Set(), phase: 'countdown' };
 
-/** Start a new round for the current level. */
-function startRound() {
-  const config = getLevelConfig(state.currentLevel);
-  fishPositions.clear();
-  playerClicks.clear();
-  phase = 'countdown';
+  document.getElementById('fish-results-container').innerHTML = '';
+  document.getElementById('fish-actions').innerHTML = '';
+  renderFishGrid(config.rows, config.cols);
 
-  $('game-level').textContent = `Level ${state.currentLevel}`;
-  $('game-score').textContent = state.score;
-  $('progress-fill').style.width = `${(state.currentLevel / 100) * 100}%`;
-  $('btn-submit').style.display = 'none';
-  $('game-status').textContent = 'Get ready...';
-
-  renderGrid(config.rows, config.cols);
-
-  // Place fish randomly
-  const allPositions = [];
+  // Generate random fish positions
+  const allPos = [];
   for (let r = 0; r < config.rows; r++)
     for (let c = 0; c < config.cols; c++)
-      allPositions.push(`${r}-${c}`);
+      allPos.push(r + '-' + c);
 
-  // Shuffle and pick
-  for (let i = allPositions.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [allPositions[i], allPositions[j]] = [allPositions[j], allPositions[i]];
-  }
-  for (let i = 0; i < config.fishCount; i++) {
-    fishPositions.add(allPositions[i]);
-  }
+  fishRound.positions = pickRandom(allPos, config.fishCount);
 
-  // Countdown 3-2-1 then reveal
-  runCountdown(3);
+  showCountdown(3, function() { startRevealPhase(fishRound.positions); });
 }
 
-function runCountdown(count) {
+function showCountdown(count, callback) {
+  const overlay = document.getElementById('countdown-overlay');
   if (count <= 0) {
-    startRevealPhase();
+    overlay.style.display = 'none';
+    callback();
     return;
   }
-
-  const wrapper = $('grid-wrapper');
-  // Remove any existing overlay
-  let overlay = wrapper.querySelector('.countdown-overlay');
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.className = 'countdown-overlay';
-    wrapper.appendChild(overlay);
-  }
-  overlay.innerHTML = `<div class="countdown-number">${count}</div>`;
-  $('game-status').textContent = `Starting in ${count}...`;
-
-  setTimeout(() => runCountdown(count - 1), 800);
+  overlay.style.display = 'flex';
+  overlay.textContent = count;
+  setTimeout(function() { showCountdown(count - 1, callback); }, 700);
 }
 
-function startRevealPhase() {
-  phase = 'reveal';
-  // Remove countdown overlay
-  const overlay = $('grid-wrapper').querySelector('.countdown-overlay');
-  if (overlay) overlay.remove();
+function startRevealPhase(fishPositions) {
+  fishRound.phase = 'reveal';
+  document.getElementById('fish-phase-text').innerHTML = '\u{1F41F} Memorize the fish positions!';
 
-  $('game-status').textContent = '🐟 Memorize the fish positions!';
+  fishPositions.forEach(function(key) {
+    const cell = document.querySelector('.fish-cell[data-key="' + key + '"]');
+    if (cell) { cell.classList.add('revealed'); cell.textContent = '\u{1F41F}'; }
+  });
 
-  // Show fish on cells
-  const cells = $('grid').children;
-  for (const cell of cells) {
-    if (fishPositions.has(cell.dataset.pos)) {
-      cell.classList.add('reveal');
-      cell.textContent = '🐟';
-    }
-  }
-
-  // After 3 seconds, hide
-  setTimeout(() => {
-    if (phase === 'reveal') startRecallPhase();
-  }, 3000);
+  setTimeout(startRecallPhase, 3000);
 }
 
 function startRecallPhase() {
-  phase = 'recall';
-  $('game-status').textContent = '🔍 Click where the fish were hiding!';
-  $('btn-submit').style.display = '';
+  fishRound.phase = 'recall';
+  document.getElementById('fish-phase-text').innerHTML = '\u{1F914} Where were the fish? Click to select!';
 
-  const cells = $('grid').children;
-  for (const cell of cells) {
-    cell.classList.remove('reveal');
+  document.querySelectorAll('.fish-cell').forEach(function(cell) {
     cell.textContent = '';
+    cell.classList.remove('revealed');
     cell.classList.add('clickable');
-  }
+    cell.addEventListener('click', onFishCellClick);
+  });
+
+  updateFishSubmitBtn();
 }
 
-function onCellClick(r, c, cell) {
-  if (phase !== 'recall') return;
+function onFishCellClick(e) {
+  if (fishRound.phase !== 'recall') return;
+  const cell = e.currentTarget;
+  const key = cell.dataset.key;
 
-  const pos = `${r}-${c}`;
-  if (playerClicks.has(pos)) {
-    // Deselect
-    playerClicks.delete(pos);
+  if (fishRound.clicked.has(key)) {
+    fishRound.clicked.delete(key);
     cell.classList.remove('selected');
+    cell.textContent = '';
   } else {
-    playerClicks.add(pos);
+    fishRound.clicked.add(key);
     cell.classList.add('selected');
+    cell.textContent = '\u{1F4CD}';
   }
+  updateFishSubmitBtn();
 }
 
-/** Evaluate the player's clicks against actual fish positions. */
-function evaluateAnswers() {
-  phase = 'result';
-  $('btn-submit').style.display = 'none';
+function updateFishSubmitBtn() {
+  const config = getLevelConfig(STATE.fish.level);
+  document.getElementById('fish-actions').innerHTML =
+    '<button class="btn btn-success" onclick="submitFishAnswer()">\u2705 Submit (' + fishRound.clicked.size + '/' + config.fishCount + ')</button>';
+}
 
-  let correct = 0, wrong = 0, missed = 0;
+function submitFishAnswer() {
+  if (fishRound.phase !== 'recall') return;
+  fishRound.phase = 'results';
 
-  const cells = $('grid').children;
-  for (const cell of cells) {
+  const result = evaluateFishAnswers(fishRound.clicked, fishRound.positions);
+
+  // Color cells
+  document.querySelectorAll('.fish-cell').forEach(function(cell) {
     cell.classList.remove('clickable', 'selected');
-    const pos = cell.dataset.pos;
-    const isFish = fishPositions.has(pos);
-    const isClicked = playerClicks.has(pos);
+    const key = cell.dataset.key;
+    const wasClicked = fishRound.clicked.has(key);
+    const wasFish = fishRound.positions.indexOf(key) !== -1;
 
-    if (isFish && isClicked) {
-      cell.classList.add('correct');
-      cell.textContent = '✅';
-      correct++;
-    } else if (!isFish && isClicked) {
-      cell.classList.add('wrong');
-      cell.textContent = '❌';
-      wrong++;
-    } else if (isFish && !isClicked) {
-      cell.classList.add('missed');
-      cell.textContent = '🐟';
-      missed++;
+    if (wasClicked && wasFish) { cell.classList.add('correct'); cell.textContent = '\u2705'; }
+    else if (wasClicked && !wasFish) { cell.classList.add('wrong'); cell.textContent = '\u274C'; }
+    else if (!wasClicked && wasFish) { cell.classList.add('missed'); cell.textContent = '\u{1F41F}'; }
+  });
+
+  showFishResultsPanel(result);
+}
+
+function evaluateFishAnswers(clicked, correct) {
+  const correctSet = new Set(correct);
+  let hits = 0, falseClicks = 0;
+  clicked.forEach(function(key) { if (correctSet.has(key)) hits++; else falseClicks++; });
+  const misses = correct.length - hits;
+  const accuracy = correct.length > 0 ? Math.round((hits / correct.length) * 100) : 0;
+  const isPerfect = hits === correct.length && falseClicks === 0;
+  let points = hits * 10 - falseClicks * 5;
+  if (isPerfect) points *= 2;
+  return { hits, misses, falseClicks, accuracy, isPerfect, points, total: correct.length };
+}
+
+function showFishResultsPanel(result) {
+  const passed = result.accuracy >= 70;
+  STATE.fish.totalCorrect += result.hits;
+  STATE.fish.totalAttempts += result.total;
+
+  let streakBonus = false;
+  if (passed) {
+    STATE.fish.score += result.points;
+    if (result.isPerfect) {
+      STATE.fish.streak++;
+      if (STATE.fish.streak >= 3) { STATE.fish.score += 50; streakBonus = true; }
+    } else {
+      STATE.fish.streak = 0;
     }
+    STATE.fish.bestStreak = Math.max(STATE.fish.bestStreak, STATE.fish.streak);
+    STATE.fish.highScore = Math.max(STATE.fish.highScore, STATE.fish.score);
+    STATE.fish.levelsCompleted = Math.max(STATE.fish.levelsCompleted, STATE.fish.level);
+    if (STATE.fish.level < 100) STATE.fish.level++;
+  } else {
+    STATE.fish.streak = 0;
   }
 
-  const totalFish = fishPositions.size;
-  const accuracy = totalFish > 0 ? Math.round((correct / totalFish) * 100) : 0;
-  const isPerfect = correct === totalFish && wrong === 0;
-  const passed = accuracy >= 70;
+  saveFishProgress();
 
-  // Scoring
-  let points = correct * 10 - wrong * 5;
-  if (isPerfect) points += 50;
-  if (points < 0) points = 0;
-  state.score += points;
-  if (state.score > state.highScore) state.highScore = state.score;
+  document.getElementById('fish-score').textContent = STATE.fish.score;
+  document.getElementById('fish-streak').textContent = STATE.fish.streak;
+  document.getElementById('fish-highscore').textContent = STATE.fish.highScore;
+  document.getElementById('fish-phase-text').innerHTML = '';
 
-  // Stats
-  state.roundsPlayed++;
-  state.accuracyHistory.push(accuracy);
-  if (isPerfect) state.perfectRounds++;
+  const tip = showFishTip(STATE.fish.level);
+  document.getElementById('fish-results-container').innerHTML =
+    '<div class="results-panel">' +
+    (result.isPerfect ? '<div class="perfect-banner">Perfect! \u{1F31F}</div>' : '') +
+    '<h3>' + (passed ? 'Level Passed!' : 'Not quite \u2014 try again!') + '</h3>' +
+    '<div class="result-line">\u2705 Correct: ' + result.hits + ' / ' + result.total + '</div>' +
+    '<div class="result-line">\u274C Wrong clicks: ' + result.falseClicks + '</div>' +
+    '<div class="result-line">\u{1F3AF} Accuracy: ' + result.accuracy + '%</div>' +
+    '<div class="result-line">Points: ' + (result.points > 0 ? '+' : '') + result.points + '</div>' +
+    (streakBonus ? '<div class="result-line">\u{1F525} Streak bonus: +50</div>' : '') +
+    '<div class="tip-box">' + tip + '</div>' +
+    '</div>';
 
+  const actions = document.getElementById('fish-actions');
   if (passed) {
-    state.streak++;
-    if (state.streak > state.bestStreak) state.bestStreak = state.streak;
-    if (state.currentLevel < 100) {
-      state.currentLevel++;
-      if (state.currentLevel > state.maxUnlockedLevel) {
-        state.maxUnlockedLevel = state.currentLevel;
-      }
+    if (STATE.fish.level <= 100) {
+      actions.innerHTML =
+        '<button class="btn btn-success" onclick="startNextFishLevel()">Next Level \u25B6</button>' +
+        '<button class="btn btn-secondary" onclick="replayFishLevel()">Replay</button>';
+    } else {
+      actions.innerHTML = '<div style="text-align:center;font-size:1.2rem;">\u{1F3C6} You completed all 100 levels!</div>';
     }
   } else {
-    state.streak = 0;
-  }
-
-  saveState();
-
-  // Show result overlay
-  $('result-title').textContent = isPerfect ? '🌟 Perfect Round!' : passed ? '✅ Level Passed!' : '❌ Try Again';
-  $('result-accuracy').textContent = accuracy + '%';
-  $('res-correct').textContent = correct;
-  $('res-wrong').textContent = wrong;
-  $('res-missed').textContent = missed;
-  $('res-points').textContent = '+' + points;
-
-  // Tip
-  const tip = showTip(state.currentLevel);
-  $('tip-text').innerHTML = `<strong>${tip.title}:</strong> ${tip.text}`;
-
-  // Buttons
-  $('btn-next').style.display = passed ? '' : 'none';
-  $('btn-retry').style.display = passed ? 'none' : '';
-
-  $('result-overlay').classList.add('active');
-}
-
-// ===== STATS SCREEN =====
-function updateStatsUI() {
-  $('st-level').textContent = state.currentLevel;
-  $('st-highscore').textContent = state.highScore;
-  $('st-played').textContent = state.roundsPlayed;
-  $('st-perfect').textContent = state.perfectRounds;
-  $('st-streak').textContent = state.bestStreak;
-  const avgAcc = state.accuracyHistory.length > 0
-    ? Math.round(state.accuracyHistory.reduce((a, b) => a + b, 0) / state.accuracyHistory.length)
-    : null;
-  $('st-accuracy').textContent = avgAcc !== null ? avgAcc + '%' : '—';
-}
-
-// ===== BUBBLES BACKGROUND =====
-function createBubbles() {
-  const container = $('bubbles');
-  for (let i = 0; i < 20; i++) {
-    const b = document.createElement('div');
-    b.className = 'bubble';
-    const size = 10 + Math.random() * 30;
-    b.style.width = size + 'px';
-    b.style.height = size + 'px';
-    b.style.left = Math.random() * 100 + '%';
-    b.style.animationDuration = 8 + Math.random() * 12 + 's';
-    b.style.animationDelay = Math.random() * 10 + 's';
-    container.appendChild(b);
+    actions.innerHTML = '<button class="btn btn-warning" onclick="startFishRound()">Try Again \u{1F504}</button>';
   }
 }
 
-// ===== EVENT LISTENERS =====
-$('btn-play').addEventListener('click', () => {
-  showScreen('game');
-  startRound();
-});
+function startNextFishLevel() {
+  document.getElementById('fish-level').textContent = STATE.fish.level;
+  startFishRound();
+}
 
-$('level-selector').addEventListener('change', (e) => {
-  state.currentLevel = parseInt(e.target.value, 10);
-  saveState();
-  updateHomeUI();
-});
+function replayFishLevel() {
+  // Replay previous level
+  if (STATE.fish.level > 1) STATE.fish.level--;
+  document.getElementById('fish-level').textContent = STATE.fish.level;
+  startFishRound();
+}
 
-$('btn-stats').addEventListener('click', () => {
-  updateStatsUI();
-  showScreen('stats');
-});
+function showFishTip(level) {
+  let pool;
+  if (level <= 20) pool = FISH_TIPS.basic;
+  else if (level <= 60) pool = FISH_TIPS.intermediate;
+  else pool = FISH_TIPS.expert;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
-$('btn-home-from-game').addEventListener('click', () => {
-  phase = 'idle';
-  updateHomeUI();
-  showScreen('home');
-});
+/* ================================================================
+   FOOD GAME — GAME LOGIC
+   ================================================================ */
 
-$('btn-home-from-stats').addEventListener('click', () => {
-  updateHomeUI();
-  showScreen('home');
-});
+function initFoodUI() {
+  document.getElementById('food-level').textContent = STATE.food.level;
+  document.getElementById('food-score').textContent = STATE.food.score;
+  document.getElementById('food-streak').textContent = STATE.food.streak;
+  document.getElementById('food-highscore').textContent = STATE.food.highScore;
+  document.getElementById('food-results-container').innerHTML = '';
+  document.getElementById('food-grid-container').innerHTML = '';
+  document.getElementById('food-phase-text').innerHTML = '';
+  document.getElementById('food-timer-container').style.display = 'none';
 
-$('btn-submit').addEventListener('click', () => {
-  if (phase === 'recall') evaluateAnswers();
-});
+  document.getElementById('food-actions').innerHTML =
+    '<button class="btn btn-primary" onclick="startFoodRound()">\u{1F3AE} Play Level ' + STATE.food.level + '</button>';
+}
 
-$('btn-next').addEventListener('click', () => {
-  $('result-overlay').classList.remove('active');
-  $('game-score').textContent = state.score;
-  startRound();
-});
+function selectRandomFoods(count) {
+  return pickRandom(FOOD_LIBRARY, count);
+}
 
-$('btn-retry').addEventListener('click', () => {
-  $('result-overlay').classList.remove('active');
-  startRound();
-});
+function getSmartDecoys(correctFoods, count) {
+  const correctIds = new Set(correctFoods.map(function(f) { return f.id; }));
+  const correctCategories = new Set(correctFoods.map(function(f) { return f.category; }));
+  const available = FOOD_LIBRARY.filter(function(f) { return !correctIds.has(f.id); });
 
-// ===== INIT =====
-loadState();
-updateHomeUI();
-createBubbles();
+  const sameCategory = shuffle(available.filter(function(f) { return correctCategories.has(f.category); }));
+  const otherCategory = shuffle(available.filter(function(f) { return !correctCategories.has(f.category); }));
+
+  const decoys = [];
+  for (let i = 0; i < sameCategory.length && decoys.length < count; i++) decoys.push(sameCategory[i]);
+  for (let i = 0; i < otherCategory.length && decoys.length < count; i++) decoys.push(otherCategory[i]);
+  return decoys;
+}
+
+function startFoodRound() {
+  if (foodRound.timerId) { clearInterval(foodRound.timerId); foodRound.timerId = null; }
+
+  const config = getFoodLevelConfig(STATE.food.level);
+  const correctFoods = selectRandomFoods(config.foodCount);
+  const decoyCount = config.optionPoolSize - config.foodCount;
+  const decoys = getSmartDecoys(correctFoods, decoyCount);
+  const allOptions = shuffle([...correctFoods, ...decoys]);
+
+  foodRound = { correctFoods: correctFoods, allOptions: allOptions, selected: new Set(), phase: 'show', timerId: null };
+
+  document.getElementById('food-results-container').innerHTML = '';
+  document.getElementById('food-actions').innerHTML = '';
+
+  renderShowPhase(correctFoods, config.displaySeconds);
+}
+
+function renderShowPhase(foods, seconds) {
+  document.getElementById('food-phase-text').innerHTML = 'Memorize these foods! \u23F3';
+
+  const container = document.getElementById('food-grid-container');
+  container.innerHTML = '';
+
+  foods.forEach(function(food, i) {
+    const card = document.createElement('div');
+    card.className = 'food-card';
+    card.style.opacity = '0';
+    card.style.transition = 'opacity .3s ease ' + (i * 0.04) + 's';
+    card.innerHTML = '<span class="food-emoji">' + food.emoji + '</span><span class="food-name">' + food.name + '</span>';
+    container.appendChild(card);
+    requestAnimationFrame(function() { card.style.opacity = '1'; });
+  });
+
+  startCountdownTimer(seconds, function() { startFoodHidePhase(); });
+}
+
+function startCountdownTimer(seconds, callback) {
+  const barContainer = document.getElementById('food-timer-container');
+  const bar = document.getElementById('food-timer-bar');
+  barContainer.style.display = 'block';
+  bar.style.width = '100%';
+  bar.className = 'timer-bar';
+
+  const totalMs = seconds * 1000;
+  const startTime = Date.now();
+
+  foodRound.timerId = setInterval(function() {
+    const elapsed = Date.now() - startTime;
+    const pct = Math.max(0, 1 - elapsed / totalMs);
+    bar.style.width = (pct * 100) + '%';
+
+    if (pct < 0.25) bar.className = 'timer-bar danger';
+    else if (pct < 0.5) bar.className = 'timer-bar warning';
+
+    if (elapsed >= totalMs) {
+      clearInterval(foodRound.timerId);
+      foodRound.timerId = null;
+      bar.style.width = '0%';
+      callback();
+    }
+  }, 50);
+}
+
+function startFoodHidePhase() {
+  foodRound.phase = 'hide';
+  document.getElementById('food-timer-container').style.display = 'none';
+  document.getElementById('food-grid-container').innerHTML = '';
+  document.getElementById('food-phase-text').innerHTML = 'What did you eat? \u{1F914}';
+
+  setTimeout(function() { renderRecallPhase(foodRound.correctFoods, foodRound.allOptions); }, 500);
+}
+
+function renderRecallPhase(correctFoods, allOptions) {
+  foodRound.phase = 'recall';
+
+  const container = document.getElementById('food-grid-container');
+  container.innerHTML = '';
+
+  allOptions.forEach(function(food) {
+    const card = document.createElement('div');
+    card.className = 'food-card selectable';
+    card.dataset.id = food.id;
+    card.innerHTML = '<span class="food-emoji">' + food.emoji + '</span><span class="food-name">' + food.name + '</span>';
+    card.addEventListener('click', function() { onFoodCardClick(card, food.id); });
+    container.appendChild(card);
+  });
+
+  updateFoodSubmitBtn();
+}
+
+function onFoodCardClick(card, id) {
+  if (foodRound.phase !== 'recall') return;
+
+  if (foodRound.selected.has(id)) {
+    foodRound.selected.delete(id);
+    card.classList.remove('selected');
+  } else {
+    foodRound.selected.add(id);
+    card.classList.add('selected');
+  }
+  updateFoodSubmitBtn();
+}
+
+function updateFoodSubmitBtn() {
+  document.getElementById('food-actions').innerHTML =
+    '<button class="btn btn-success" onclick="submitFoodAnswer()" ' +
+    (foodRound.selected.size === 0 ? 'disabled style="opacity:.5;cursor:not-allowed;"' : '') +
+    '>\u2705 Submit (' + foodRound.selected.size + '/' + foodRound.correctFoods.length + ')</button>';
+}
+
+function submitFoodAnswer() {
+  if (foodRound.phase !== 'recall' || foodRound.selected.size === 0) return;
+  foodRound.phase = 'results';
+
+  const result = evaluateFoodAnswers(foodRound.selected, foodRound.correctFoods);
+
+  // Color cards
+  const correctIdSet = new Set(foodRound.correctFoods.map(function(f) { return f.id; }));
+  document.querySelectorAll('#food-grid-container .food-card').forEach(function(card) {
+    const id = parseInt(card.dataset.id);
+    card.classList.remove('selectable', 'selected');
+    card.style.cursor = 'default';
+    const wasSelected = foodRound.selected.has(id);
+    const wasCorrect = correctIdSet.has(id);
+
+    if (wasSelected && wasCorrect) card.classList.add('correct-pick');
+    else if (wasSelected && !wasCorrect) card.classList.add('wrong-pick');
+    else if (!wasSelected && wasCorrect) card.classList.add('missed-pick');
+  });
+
+  showFoodResultsPanel(result);
+}
+
+function evaluateFoodAnswers(selectedIds, correctFoods) {
+  const correctIdSet = new Set(correctFoods.map(function(f) { return f.id; }));
+  let hits = 0, falseClicks = 0;
+  selectedIds.forEach(function(id) { if (correctIdSet.has(id)) hits++; else falseClicks++; });
+  const accuracy = correctFoods.length > 0 ? Math.round((hits / correctFoods.length) * 100) : 0;
+  const isPerfect = hits === correctFoods.length && falseClicks === 0;
+  let points = hits * 10 - falseClicks * 5;
+  if (isPerfect) points *= 2;
+  return { hits, falseClicks, accuracy, isPerfect, points, total: correctFoods.length };
+}
+
+function showFoodResultsPanel(result) {
+  const passed = result.accuracy >= 70;
+  STATE.food.totalCorrect += result.hits;
+  STATE.food.totalAttempts += result.total;
+
+  let streakBonus = false;
+  if (passed) {
+    STATE.food.score += result.points;
+    if (result.isPerfect) {
+      STATE.food.streak++;
+      if (STATE.food.streak >= 3) { STATE.food.score += 50; streakBonus = true; }
+    } else {
+      STATE.food.streak = 0;
+    }
+    STATE.food.bestStreak = Math.max(STATE.food.bestStreak, STATE.food.streak);
+    STATE.food.highScore = Math.max(STATE.food.highScore, STATE.food.score);
+    STATE.food.levelsCompleted = Math.max(STATE.food.levelsCompleted, STATE.food.level);
+    if (STATE.food.level < 50) STATE.food.level++;
+  } else {
+    STATE.food.streak = 0;
+  }
+
+  saveFoodProgress();
+
+  document.getElementById('food-score').textContent = STATE.food.score;
+  document.getElementById('food-streak').textContent = STATE.food.streak;
+  document.getElementById('food-highscore').textContent = STATE.food.highScore;
+  document.getElementById('food-phase-text').innerHTML = '';
+
+  const tip = showFoodTip(STATE.food.level);
+  document.getElementById('food-results-container').innerHTML =
+    '<div class="results-panel">' +
+    (result.isPerfect ? '<div class="perfect-banner">Perfect! \u{1F31F}</div>' : '') +
+    '<h3>' + (passed ? 'Level Passed!' : 'Not quite \u2014 try again!') + '</h3>' +
+    '<div class="result-line">\u2705 Correct: ' + result.hits + ' / ' + result.total + ' foods</div>' +
+    '<div class="result-line">\u274C False picks: ' + result.falseClicks + '</div>' +
+    '<div class="result-line">\u{1F3AF} Accuracy: ' + result.accuracy + '%</div>' +
+    '<div class="result-line">Points: ' + (result.points > 0 ? '+' : '') + result.points + '</div>' +
+    (streakBonus ? '<div class="result-line">\u{1F525} Streak bonus: +50</div>' : '') +
+    '<div class="tip-box">' + tip + '</div>' +
+    '</div>';
+
+  const actions = document.getElementById('food-actions');
+  if (passed) {
+    if (STATE.food.level <= 50) {
+      actions.innerHTML =
+        '<button class="btn btn-success" onclick="startNextFoodLevel()">Next Level \u25B6</button>' +
+        '<button class="btn btn-secondary" onclick="replayFoodLevel()">Replay</button>';
+    } else {
+      actions.innerHTML = '<div style="text-align:center;font-size:1.2rem;">\u{1F3C6} You completed all 50 levels!</div>';
+    }
+  } else {
+    actions.innerHTML = '<button class="btn btn-warning" onclick="startFoodRound()">Try Again \u{1F504}</button>';
+  }
+}
+
+function startNextFoodLevel() {
+  document.getElementById('food-level').textContent = STATE.food.level;
+  startFoodRound();
+}
+
+function replayFoodLevel() {
+  if (STATE.food.level > 1) STATE.food.level--;
+  document.getElementById('food-level').textContent = STATE.food.level;
+  startFoodRound();
+}
+
+function showFoodTip(level) {
+  let pool;
+  if (level <= 15) pool = FOOD_TIPS.beginner;
+  else if (level <= 35) pool = FOOD_TIPS.intermediate;
+  else pool = FOOD_TIPS.expert;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/* ================================================================
+   INITIALIZATION
+   ================================================================ */
+
+loadProgress();
+updateMenuStats();
 </script>
 </body>
 </html>
